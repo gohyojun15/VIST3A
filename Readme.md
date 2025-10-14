@@ -14,7 +14,8 @@ The official code for the paper: "Text-to-3D by Stitching a Multi-view Reconstru
 <img src="https://img.shields.io/badge/Project%20Page-review-brightgreen"></a>
 
 
-<video src="asset/output_grid.mp4" autoplay loop muted playsinline></video>
+https://github.com/user-attachments/assets/8610f2ac-82cf-4c37-b4e0-6d8d8ff92c6f
+
 
 
 ## 🔥 Highlights
