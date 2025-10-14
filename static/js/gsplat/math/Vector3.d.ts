@@ -1,0 +1,33 @@
+import { Matrix4 } from './Matrix4';
+declare class Vector3 {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    constructor(x?: number, y?: number, z?: number);
+    equals(v: Vector3): boolean;
+    add(v: number): Vector3;
+    add(v: Vector3): Vector3;
+    subtract(v: number): Vector3;
+    subtract(v: Vector3): Vector3;
+    multiply(v: number): Vector3;
+    multiply(v: Vector3): Vector3;
+    multiply(v: Matrix4): Vector3;
+    divide(v: number): Vector3;
+    divide(v: Vector3): Vector3;
+    cross(v: Vector3): Vector3;
+    dot(v: Vector3): number;
+    lerp(v: Vector3, t: number): Vector3;
+    min(v: Vector3): Vector3;
+    max(v: Vector3): Vector3;
+    getComponent(axis: number): number;
+    minComponent(): number;
+    maxComponent(): number;
+    magnitude(): number;
+    distanceTo(v: Vector3): number;
+    normalize(): Vector3;
+    flat(): number[];
+    clone(): Vector3;
+    toString(): string;
+    static One(value?: number): Vector3;
+}
+export { Vector3 };

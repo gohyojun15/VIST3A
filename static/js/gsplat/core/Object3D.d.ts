@@ -1,0 +1,31 @@
+import { Vector3 } from '../math/Vector3';
+import { Quaternion } from '../math/Quaternion';
+import { EventDispatcher } from '../events/EventDispatcher';
+import { Matrix4 } from '../math/Matrix4';
+import { ObjectChangedEvent } from '../events/Events';
+declare abstract class Object3D extends EventDispatcher {
+    positionChanged: boolean;
+    rotationChanged: boolean;
+    scaleChanged: boolean;
+    protected _position: Vector3;
+    protected _rotation: Quaternion;
+    protected _scale: Vector3;
+    protected _transform: Matrix4;
+    protected _changeEvent: ObjectChangedEvent;
+    update: () => void;
+    applyPosition: () => void;
+    applyRotation: () => void;
+    applyScale: () => void;
+    raiseChangeEvent: () => void;
+    constructor();
+    protected _updateMatrix(): void;
+    get position(): Vector3;
+    set position(position: Vector3);
+    get rotation(): Quaternion;
+    set rotation(rotation: Quaternion);
+    get scale(): Vector3;
+    set scale(scale: Vector3);
+    get forward(): Vector3;
+    get transform(): Matrix4;
+}
+export { Object3D };

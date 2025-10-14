@@ -1,0 +1,31 @@
+import { Camera } from '../../../cameras/Camera';
+import { Scene } from '../../../core/Scene';
+import { WebGLRenderer } from '../../WebGLRenderer';
+import { ShaderPass } from '../passes/ShaderPass';
+declare abstract class ShaderProgram {
+    private _renderer;
+    private _program;
+    private _passes;
+    protected _scene: Scene | null;
+    protected _camera: Camera | null;
+    protected _started: boolean;
+    protected _initialized: boolean;
+    protected abstract _initialize: () => void;
+    protected abstract _resize: () => void;
+    protected abstract _render: () => void;
+    protected abstract _dispose: () => void;
+    initialize: () => void;
+    resize: () => void;
+    render: (scene: Scene, camera: Camera) => void;
+    dispose: () => void;
+    constructor(renderer: WebGLRenderer, passes: ShaderPass[]);
+    get renderer(): WebGLRenderer;
+    get scene(): Scene | null;
+    get camera(): Camera | null;
+    get program(): WebGLProgram;
+    get passes(): ShaderPass[];
+    get started(): boolean;
+    protected abstract _getVertexSource(): string;
+    protected abstract _getFragmentSource(): string;
+}
+export { ShaderProgram };

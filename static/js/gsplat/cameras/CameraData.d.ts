@@ -1,0 +1,32 @@
+import { Quaternion } from '../math/Quaternion';
+import { Matrix4 } from '../math/Matrix4';
+import { Vector3 } from '../math/Vector3';
+declare class CameraData {
+    private _fx;
+    private _fy;
+    private _near;
+    private _far;
+    private _width;
+    private _height;
+    private _projectionMatrix;
+    private _viewMatrix;
+    private _viewProj;
+    update: (position: Vector3, rotation: Quaternion) => void;
+    setSize: (width: number, height: number) => void;
+    private _updateProjectionMatrix;
+    constructor();
+    get fx(): number;
+    set fx(fx: number);
+    get fy(): number;
+    set fy(fy: number);
+    get near(): number;
+    set near(near: number);
+    get far(): number;
+    set far(far: number);
+    get width(): number;
+    get height(): number;
+    get projectionMatrix(): Matrix4;
+    get viewMatrix(): Matrix4;
+    get viewProj(): Matrix4;
+}
+export { CameraData };

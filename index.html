@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="VIST3A: Text-to-3D by Stitching a Multi-View Reconstruction Network to a Video Generator - Hyojun Go">
+  <meta name="description" content="VIST3A unifies a video generator and a multi-view 3D reconstruction model into a single latent diffusion model that generates 3D representations directly from text.">
+  <meta name="keywords" content="text-to-3D, diffusion models, multi-view reconstruction, video generation, 3D Gaussian Splatting, generative models, computer vision, 3D reconstruction, 3D generation from video">
+  <meta name="author" content="Hyojun Go, Dominik Narnhofer, Prune Truong, Goutam Bhat, Federico Tombari, Konrad Schindler">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="English">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ETH Zurich PRS Group · Google Zurich">
+  <meta property="og:title" content="VIST3A: Text-to-3D by Stitching a Multi-View Reconstruction Network to a Video Generator - Hyojun Go">
+  <meta property="og:description" content="VIST3A unifies a video generator and a multi-view 3D reconstruction model into a single latent diffusion model that generates 3D representations directly from text.">
+  <meta property="og:url" content="https://gohyojun15.github.io/VIST3A/">
+  <meta property="og:image" content="https://gohyojun15.github.io/VIST3A/method_figure.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="VIST3A: Text-to-3D Generation Research Preview">
+  <meta property="article:published_time" content="2025-10-14T00:00:00.000Z">
+  <meta property="article:author" content="Hyojun Go">
+  <meta property="article:section" content="Research">
+  <meta property="article:tag" content="text-to-3D">
+  <meta property="article:tag" content="diffusion models">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@ETH_en">
+  <meta name="twitter:creator" content="@gohyojun15">
+  <meta name="twitter:title" content="VIST3A: Text-to-3D by Stitching a Multi-View Reconstruction Network to a Video Generator">
+  <meta name="twitter:description" content="VIST3A unifies a video generator and a multi-view 3D reconstruction model into a single latent diffusion model that generates 3D representations directly from text.">
+  <meta name="twitter:image" content="https://gohyojun15.github.io/VIST3A/method_figure.png">
+  <meta name="twitter:image:alt" content="VIST3A: Text-to-3D Research Preview">
+
+  <!-- Academic/Research Specific -->
+  <meta name="citation_title" content="VIST3A: Text-to-3D by Stitching a Multi-View Reconstruction Network to a Video Generator">
+  <meta name="citation_author" content="Go, Hyojun">
+  <meta name="citation_author" content="Narnhofer, Dominik">
+  <meta name="citation_author" content="Truong, Prune">
+  <meta name="citation_author" content="Bhat, Goutam">
+  <meta name="citation_author" content="Tombari, Federico">
+  <meta name="citation_author" content="Schindler, Konrad">
+  <meta name="citation_publication_date" content="2025">
+  <meta name="citation_conference_title" content="arXiv">
+  <meta name="citation_pdf_url" content="https://gohyojun15.github.io/VIST3A/static/pdfs/vist3a.pdf">
+  
+  
+  <!-- Additional SEO -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="msapplication-TileColor" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://ajax.googleapis.com">
+  <link rel="preconnect" href="https://documentcloud.adobe.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+      }
+    }
+    </script>
+
+  <style>
+    .loader {
+      width:14px; height:14px; border:2px solid #bbb; border-top-color:#2563eb;
+      border-radius:50%; display:inline-block; animation:spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  
+    .ply-thumb {
+      display:flex; flex-direction:column; gap:6px; align-items:center; padding:8px;
+      border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;
+      transition: box-shadow .15s ease, transform .05s ease;
+    }
+    .ply-thumb:hover { box-shadow:0 4px 12px rgba(0,0,0,.08); }
+    .ply-thumb:active { transform: translateY(1px); }
+    .ply-thumb img {
+      width:100%; aspect-ratio: 16/10; object-fit: cover; border-radius:6px; background:#f6f6f6;
+    }
+    .ply-thumb span { font-size:12px; color:#333; text-align:center; }
+    /* Force carousel to show only one slide at a time */
+    #comparison-carousel {
+      overflow: hidden;          /* Hide neighbor slides */
+    }
+
+    #comparison-carousel .carousel-container {
+      overflow: hidden !important;
+    }
+
+    #comparison-carousel .carousel-item {
+      flex: 0 0 100%;            /* Each slide takes 100% width */
+      max-width: 100%;           /* No shrinking */
+    }
+
+    #glb-viewer-container {
+      width: 100%;
+      max-width: 900px;   
+      height: 500px;
+      border: 1px solid #ccc;
+      margin: 0 auto;     
+      position: relative;
+      border-radius: 8px;
+      background: #111;   
+    }
+    #glb-prompt-body {
+      display: block;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #333;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;  
+      white-space: pre-wrap;    
+      flex: 1;                  
+    }
+        
+    .prompt-box {
+      margin-top: 12px;
+      background: #fdfdfd;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      text-align: left;
+      min-height: 100px;   
+      transition: all 0.2s ease;
+      overflow-y: auto; 
+    }
+
+    #prompt-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #222;
+      margin: 0;
+      word-break: break-word;
+      white-space: pre-line;
+
+      display: flex;
+      justify-content: flex-start;  
+      align-items: flex-start;       
+      gap: 8px;
+      text-align: left;
+    }
+
+    .prompt-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;   
+    }
+
+    .prompt-icon {
+      color: #2563eb;
+      font-size: 14px;
+    }
+  </style>
+
+  <!-- TODO: Replace with your paper title and authors -->
+  <title>VIST3A: Text-to-3D by Stitching a Multi-View Reconstruction Network to a Video Generator - Hyojun Go | Academic Research</title>
+  
+  <!-- Favicon and App Icons -->
+  <link rel="icon" type="image/x-icon" href="static/images/favicon.png">
+  <link rel="apple-touch-icon" href="static/images/favicon.png">
+  
+  <!-- Critical CSS - Load synchronously -->
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+
+  <!-- Non-critical CSS - Load asynchronously -->
+  <link rel="preload" href="static/css/bulma-carousel.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="static/css/bulma-slider.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="static/css/fontawesome.all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  
+  <!-- Fallback for browsers that don't support preload -->
+  <noscript>
+    <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  </noscript>
+  
+  <!-- Fonts - Optimized loading -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Defer non-critical JavaScript -->
+  <script defer src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script defer src="static/js/bulma-carousel.min.js"></script>
+  <script defer src="static/js/bulma-slider.min.js"></script>
+  <script defer src="static/js/index.js"></script>
+  
+  <!-- Structured Data for Academic Papers -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "headline": "VIST3A: Text-to-3D by Stitching a Multi-View Reconstruction Network to a Video Generator",
+    "description": "VIST3A unifies a video generator and a multi-view 3D reconstruction model into a single latent diffusion model that generates 3D representations directly from text.",
+    "author": [
+      {
+        "@type": "Person",
+        "name": "Hyojun Go",
+        "affiliation": {
+          "@type": "Organization",
+          "name": "ETH Zurich"
+        }
+      },
+      {
+        "@type": "Person",
+        "name": "Dominik Narnhofer",
+        "affiliation": {
+          "@type": "Organization",
+          "name": "ETH Zurich"
+        }
+      },
+      {
+        "@type": "Person",
+        "name": "Prune Truong",
+        "affiliation": {
+          "@type": "Organization",
+          "name": "Google Zurich"
+        }
+      },
+      {
+        "@type": "Person",
+        "name": "Goutam Bhat",
+        "affiliation": {
+          "@type": "Organization",
+          "name": "Google Zurich"
+        }
+      },
+      {
+        "@type": "Person",
+        "name": "Federico Tombari",
+        "affiliation": {
+          "@type": "Organization",
+          "name": "Google Zurich"
+        }
+      },
+      {
+        "@type": "Person",
+        "name": "Konrad Schindler",
+        "affiliation": {
+          "@type": "Organization",
+          "name": "ETH Zurich"
+        }
+      }
+    ],
+    "datePublished": "2025-10-14",
+    "publisher": {
+      "@type": "Organization",
+      "name": "arXiv"
+    },
+    "url": "https://gohyojun15.github.io/VIST3A/",
+    "image": "https://gohyojun15.github.io/VIST3A/method_figure.png",
+    "keywords": [
+      "text-to-3D",
+      "diffusion models",
+      "multi-view reconstruction",
+      "video generation",
+      "3D Gaussian Splatting",
+      "generative models",
+      "computer vision"
+    ],
+    "abstract": "The rapid progress of large, pretrained models for both visual content generation and 3D reconstruction opens up new possibilities for text-to-3D generation. Intuitively, one could obtain a formidable 3D scene generator if one were able to combine the power of a modern latent text-to-video model as "generator" with the geometric abilities of a recent (feedforward) 3D reconstruction system as "decoder". We introduce VIST3A, a general framework that does just that, addressing two main challenges. First, the two components must be joined in a way that preserves the rich knowledge encoded in their weights. We revisit model stitching, i.e., we identify the layer in the 3D decoder that best matches the latent representation produced by the text-to-video generator and stitch the two parts together. That operation requires only a small dataset and no labels. Second, the text-to-video generator must be aligned with the stitched 3D decoder, to ensure that the generated latents are decodable into consistent, perceptually convincing 3D scene geometry. To that end, we adapt direct reward finetuning, a popular technique for human preference alignment. We evaluate the proposed VIST3A approach with different video generators and 3D reconstruction models. All tested pairings markedly improve over prior text-to-3D models that output Gaussian splats. Moreover, by choosing a suitable 3D base model, VIST3A also enables high-quality text-to-pointmap generation.",
+    "citation": "TODO:",
+    "isAccessibleForFree": true,
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "mainEntity": {
+      "@type": "WebPage",
+      "@id": "https://gohyojun15.github.io/VIST3A/"
+    },
+    "about": [
+      { "@type": "Thing", "name": "Text-to-3D Generation" },
+      { "@type": "Thing", "name": "Diffusion Models" },
+      { "@type": "Thing", "name": "3D Gaussian Splatting" },
+      { "@type": "Thing", "name": "Multi-view Reconstruction" },
+      { "@type": "Thing", "name": "Video Generation" },
+      { "@type": "Thing", "name": "Generative Models" },
+      { "@type": "Thing", "name": "Computer Vision" }
+    ]
+  }
+  </script>
+  
+  <!-- Website/Organization Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "ETH Zurich PRS Group · Google Zurich",
+    "url": "https://prs.igp.ethz.ch/",
+    "logo": "https://gohyojun15.com/static/images/favicon.png",
+    "sameAs": [
+      "https://twitter.com/gohyojun3",
+      "https://github.com/gohyojun15"
+    ]
+  }
+  </script>
+</head>
+<body>
+
+
+  <!-- Scroll to Top Button -->
+  <button class="scroll-to-top" onclick="scrollToTop()" title="Scroll to top" aria-label="Scroll to top">
+    <i class="fas fa-chevron-up"></i>
+  </button>
+
+
+  <main id="main-content">
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <!-- TODO: Replace with your paper title -->
+            <h1 class="title is-1 publication-title">VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator</h1>
+            <div class="is-size-5 publication-authors">
+              <!-- TODO: Replace with your paper authors and their personal links -->
+              <span class="author-block">
+                <a href="https://gohyojun15.github.io/" target="_blank">Hyojun Go</a><sup>1</sup>,</span>
+                <span class="author-block">
+                  <a href="https://scholar.google.com/citations?user=tFx8AhkAAAAJ&hl=en" target="_blank">Dominik Nanhofer</a><sup>1</sup>,</span>
+                  <span class="author-block">
+                    <a href="https://goutamgmb.github.io/" target="_blank">Goutam Bhat</a><sup>2</sup>,</span>
+                  </span>
+                  <span class="author-block">
+                    <a href="https://prunetruong.com/" target="_blank">Prune Troung</a><sup>2</sup>,</span>
+                  <span class="author-block">
+                    <a href="https://federicotombari.github.io/" target="_blank">Federico Tombari</a><sup>2</sup>,</span>
+                  <span class="author-block">
+                    <a href="https://scholar.google.com/citations?user=FZuNgqIAAAAJ&hl=ko" target="_blank">Konrad Schindler</a><sup>1</sup>,</span>
+                  </span>
+            </div>
+
+                  <div class="is-size-5 publication-authors">
+                    <span class="author-block">ETH Zurich<sup>1</sup>, Google<sup>2</sup><br></span>
+                    <!-- <span class="eql-cntrb"><small><br><sup>*</sup>Indicates Equal Contribution</small></span> -->
+                  </div>
+
+                  <div class="column has-text-centered">
+                    <div class="publication-links">
+                         <!-- TODO: Update with your arXiv paper ID -->
+                      <span class="link-block">
+                        <a href="https://arxiv.org/pdf/<ARXIV PAPER ID>.pdf" target="_blank"
+                        class="external-link button is-normal is-rounded is-dark">
+                        <span class="icon">
+                          <i class="fas fa-file-pdf"></i>
+                        </span>
+                        <span>Paper (under construction)</span>
+                      </a>
+                    </span>
+
+                    <!-- TODO: Add your supplementary material PDF or remove this section -->
+                    <!-- <span class="link-block"> -->
+                      <!-- <a href="static/pdfs/supplementary_material.pdf" target="_blank" -->
+                      <!-- class="external-link button is-normal is-rounded is-dark"> -->
+                      <!-- <span class="icon"> -->
+                        <!-- <i class="fas fa-file-pdf"></i> -->
+                      <!-- </span> -->
+                      <!-- <span>Supplementary</span> -->
+                    <!-- </a> -->
+                  <!-- </span> -->
+
+                  <!-- TODO: Replace with your GitHub repository URL -->
+                  <span class="link-block">
+                    <a href="https://github.com/gohyojun15/VIST3A" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fab fa-github"></i>
+                    </span>
+                    <span>GitHub</span>
+                  </a>
+                </span>
+
+                <!-- TODO: Update with your arXiv paper ID -->
+                <!-- <span class="link-block"> -->
+                  <!-- <a href="https://arxiv.org/abs/<ARXIV PAPER ID>" target="_blank" -->
+                  <!-- class="external-link button is-normal is-rounded is-dark"> -->
+                  <!-- <span class="icon"> -->
+                    <!-- <i class="ai ai-arxiv"></i> -->
+                  <!-- </span> -->
+                  <!-- <span>arXiv</span> -->
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Teaser video-->
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <!-- TODO: Replace with your teaser video -->
+      <video poster="" id="tree" autoplay controls muted loop height="100%" preload="metadata">
+        <!-- TODO: Add your video file path here -->
+        <source src="output_grid.mp4" type="video/mp4">
+      </video>
+      <!-- TODO: Replace with your video description -->
+      <h2 class="subtitle has-text-centered">
+        Rendered videos of generated 3DGS from our VIST3A method (Wan + AnySplat). 
+      </h2>
+      <h2 class="subtitle has-text-centered has-background-info-light has-text-black has-text-weight-bold p-3">
+        TL;DR: VIST3A unifies a video generator and a multi-view 3D reconstruction model into a single latent diffusion model that generates 3D representations directly from text.
+      </h2>
+    </div>
+  </div>
+</section>
+<!-- End teaser video -->
+
+<!-- Paper abstract -->
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Summary of Our Method</h2>
+        <div class="content has-text-justified">
+          <img src="method_figure.png" alt="VIST3A method figure" loading="lazy"/>
+
+          <h3 class="title is-5" style="margin-top: 2rem; margin-bottom: 1rem;">Core Innovation</h3>
+          <p class="content" style="margin-top:0.5rem">
+            We unify a video generator and a multi-view 3D reconstruction model into a single latent diffusion framework. 
+            To achieve this, we <strong>stitch a pretrained 3D foundation model</strong> into the video VAE latent space, reusing strong 3D priors for efficient adaptation. 
+            We then apply <strong>direct reward finetuning</strong> to align the generated latents with 3D quality and geometric consistency—without any 3D labels.
+          </p>
+
+          <ul class="content" style="margin-top:-0.25rem">
+            <li><strong>Plug-and-play model stitching:</strong> We search for a compatible layer in the 3D model and connect it to the video latent via a lightweight linear mapping. Thanks to good initialization from stitching, only light finetuning—without any additional data—is needed to recover the original 3D model performance.</li>
+            <li><strong>Direct 3D alignment:</strong> We strengthen the connection between the video generator and the stitched 3D model through reward-based tuning, ensuring that decoded 3D representations are both high-quality and geometrically consistent.</li>
+          </ul>
+
+          <h3 class="title is-5" style="margin-top: 2rem; margin-bottom: 1rem;">Why This Matters</h3>
+          <ul class="content" style="margin-top:-0.25rem">
+            <li><strong>Efficient integration of evolving 3D models:</strong> Thanks to model stitching, integrating new 3D foundation models no longer requires large-scale finetuning or additional data collection. In contrast, retraining decoders from scratch makes it difficult to keep pace with the rapid progress of 3D model development.</li>
+
+            <li><strong>Robust decoding under latent noise:</strong> While one might feed VAE-decoded images into 3D foundation models, we show that <strong>integrating the 3D model directly into the latent space</strong> results in significantly more stable and robust decoding under latent noise. This indicates that during generation—where noisy or perturbed latents are common—our stitched decoder remains far more effective and resilient.</li>
+
+            <li><strong>Reward tuning for robust generation:</strong> Since the 3D reconstruction network is stitched into the latent space, <strong>reward tuning becomes more efficient and stable</strong>. Through this process, the generator learns to produce <strong>decodable and 3D-consistent latents</strong>, resulting in a highly reliable latent diffusion model.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- End paper abstract -->
+
+
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Interactive Viewer for Generated 3DGS (Compressed)</h2>
+    <h2 class="subtitle has-text-centered has-background-info-light has-text-black has-text-weight-bold p-3">
+      Below are 3DGS results generated with our VIST3A method (Wan + AnySplat). Click on the image to interact with it.
+    </h2>
+    <!-- Toolbar -->
+    <div class="box" style="margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+
+        <!-- Loading indicator -->
+        <div id="loading" style="display:none; align-items:center; gap:8px;">
+          <span class="loader" aria-hidden="true"></span>
+          <span id="loading-text">Loading…</span>
+        </div>
+      </div>
+
+      <!-- PLY gallery -->
+      <div id="ply-gallery" style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px;">
+        <button class="ply-thumb" data-src="asset/ply_files/shoes_in_barn.ply" title="Dusty barn with old boots">
+          <img src="asset/ply_teaser/shoes_in_barn.png" alt="Dusty barn with old boots">
+          <span>Dusty barn with old boots</span>
+        </button>
+
+        <!-- Add if it is necessary -->
+        <button class="ply-thumb" data-src="asset/ply_files/baby.ply" title="Infant reading with plush toys">
+          <img src="asset/ply_teaser/baby.png" alt="Infant reading with plush toys">
+          <span>Infant reading with plush toys</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/oil_painting_world.ply" title="Chaotic landscape with wandering figure">
+          <img src="asset/ply_teaser/oil_painting_world.png" alt="Chaotic landscape with wandering figure">
+          <span>Chaotic landscape with wandering figure</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/rustic_kitchen.ply" title="Rustic kitchen with baking bread">
+          <img src="asset/ply_teaser/rustic_kitchen.png" alt="Rustic kitchen with baking bread">
+          <span>Rustic kitchen with baking bread</span>
+        </button>
+        
+        <button class="ply-thumb" data-src="asset/ply_files/chip_castle.ply" title="Tortilla castle with salsa river">
+          <img src="asset/ply_teaser/chip_castle.png" alt="Tortilla castle with salsa river">
+          <span>Tortilla castle with salsa river</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/Astronaut_riding_horse_in_forest.ply" title="Astronaut riding horse in forest.">
+          <img src="asset/ply_teaser/Astronaut_riding_horse_in_forest.png" alt="Astronaut riding horse in forest.">
+          <span>Astronaut riding horse in forest.</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/blue_bird.ply" title="Bluebird on tree branch">
+          <img src="asset/ply_teaser/blue_bird.png" alt="Bluebird on tree branch">
+          <span>Bluebird on tree branch</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/car_parked_street.ply" title="Car parked on quiet street">
+          <img src="asset/ply_teaser/car_parked_street.png" alt="Car parked on quiet street">
+          <span>Car parked on quiet street</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/building_construction.ply" title="Building construction with scattered materials">
+          <img src="asset/ply_teaser/building_construction.png" alt="Building construction with scattered materials">
+          <span>Building construction with scattered materials</span>
+        </button>
+        <button class="ply-thumb" data-src="asset/ply_files/rocky_cliffs_by_calm_ocean.ply" title="Rocky cliffs by calm ocean">
+          <img src="asset/ply_teaser/rocky_cliffs_by_calm_ocean.png" alt="Rocky cliffs by calm ocean">
+          <span>Rocky cliffs by calm ocean</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/street_with_parked_cars_and_trees.ply" title="Street with parked cars, trees">
+          <img src="asset/ply_teaser/street_with_parked_cars_and_trees.png" alt="Street with parked cars, trees">
+          <span>Street with parked cars, trees</span>
+        </button>
+
+
+        <button class="ply-thumb" data-src="asset/ply_files/winding_forest_path_with_platform.ply" title="Winding forest path with platform">
+          <img src="asset/ply_teaser/winding_forest_path_with_platform.png" alt="Winding forest path with platform">
+          <span>Winding forest path with platform</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/sunlit_park_with_bench_and_building.ply" title="Sunlit park with bench, building">
+          <img src="asset/ply_teaser/sunlit_park_with_bench_and_building.png" alt="Sunlit park with bench, building">
+          <span>Sunlit park with bench, building</span>
+        </button>
+        
+
+        <button class="ply-thumb" data-src="asset/ply_files/golden_retriever_wearing_bowtie.ply" title="Golden retriever wearing bowtie">
+          <img src="asset/ply_teaser/golden_retriever_wearing_bowtie.png" alt="Golden retriever wearing bowtie">
+          <span>Golden retriever wearing bowtie</span>
+        </button>
+
+        <button class="ply-thumb" data-src="asset/ply_files/old_explorer_map.ply" title="Tattered old explorer's map">
+          <img src="asset/ply_teaser/old_explorer_map.png" alt="Tattered old explorer's map">
+          <span>Tattered old explorer's map</span>
+        </button>
+        
+
+        <button class="ply-thumb" data-src="asset/ply_files/pizza_slice_with_soda_can.ply" title="Pizza slice with soda can">
+          <img src="asset/ply_teaser/pizza_slice_with_soda_can.png" alt="Pizza slice with soda can">
+          <span>Pizza slice with soda can</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- prompt box -->
+    <div id="prompt-display" class="box prompt-box">
+      <p id="prompt-text">
+        <span class="prompt-label">
+          <i class="fas fa-comment-dots prompt-icon" aria-hidden="true"></i>
+          <strong>Prompt:</strong>
+        </span>
+        <span id="prompt-body">Select a model to see its prompt here.</span>
+      </p>
+    </div>
+
+    <!-- Viewer -->
+    <div id="viewer-container" style="width:100%; height:500px; border:1px solid #ccc; position:relative;"></div>
+  </div>
+</section>
+
+<script type="module">
+  import * as SPLAT from "./static/js/gsplat/index.es.js";
+
+  // --- DOM refs ---
+  const container     = document.getElementById("viewer-container");
+  const gallery       = document.getElementById("ply-gallery");
+  const loadingElm    = document.getElementById("loading");
+  const loadingText   = document.getElementById("loading-text");
+  let currentPromptSrc = null; 
+
+  const plyConfigs = {
+    "asset/ply_files/shoes_in_barn.ply": {
+      position: [-0.3693411946296692, -0.0411008819937706, 0.16133493185043335],
+      target: [1.014646053314209, 0.06925327330827713, 1.2932169437408447],
+      fx: 358.8755,
+      fy: 387.6106,
+      cx: 250,
+      cy: 250,
+      prompt: "Two worn pairs of leather boots lie haphazardly on a dusty barn floor, their laces tangled and their muddy soles facing outward. They are adjacent to a tall, weathered wooden barrel that stands upright, bearing the marks and scratches of frequent use. The golden light from the setting sun filters through the gaps in the barn's wooden slats, casting elongated shadows that stretch towards the old, creaking doorway."
+    },
+    "asset/ply_files/blue_bird.ply": {
+      position: [0.23117156326770782, 0.0426069051027298, -0.07546703517436981],
+      target: [-0.2955775856971741, 0.021415160968899727, 1.2920585870742798],
+      fx: 403.8068,
+      fy: 457.8012,
+      cx: 250,
+      cy: 250,
+      prompt: "A bluebird perched on a tree branch"
+    },
+    "asset/ply_files/baby.ply": {
+      position: [0.2068820595741272, -0.013912588357925415, -0.0020483992993831635],
+      target: [-0.28540095686912537, -0.009742235764861107, 1.9842047691345215],
+      fx: 346.5594,
+      fy: 387.5001,
+      cx: 250,
+      cy: 250,
+      prompt: "A small infant with round, silver-framed glasses perched on their nose is comfortably sitting in the center of a plush white bed. The child, dressed in a pale yellow onesie, holds an open, colorful picture book with both tiny hands, appearing to gaze intently at the illustrations. Surrounding the infant are an assortment of plush toys, including a fluffy blue bear and a soft green frog, scattered about the soft, cream-colored bedspread."
+    },
+    "asset/ply_files/oil_painting_world.ply": {
+      position: [
+          -0.05458344519138336,
+          0.0013774624094367027,
+          0.4870414733886719
+      ],
+      target: [
+          0.06630627810955048,
+          -0.008895927108824253,
+          1.1029582023620605
+      ],
+      fx: 308.8314514160156,
+      fy: 347.33721923828125,
+      cx: 250.0,
+      cy: 250.0,
+      prompt: "An abstract oil painting that depicts a chaotic blend of vibrant colors and swirling patterns, giving the impression of a vast, disorienting landscape. The canvas is filled with bold strokes of reds, blues, and yellows that seem to clash and compete for space, symbolizing the complexity and confusion of navigating through life. Amidst the turmoil, a small, indistinct figure appears to be wandering, searching for direction in the overwhelming expanse."
+    },
+    "asset/ply_files/rustic_kitchen.ply": {
+        position: [
+            0.3920333981513977,
+            0.007557745557278395,
+            0.0036021023988723755
+        ],
+        target: [
+            -0.06963121891021729,
+            -0.0013068546541035175,
+            0.9146636128425598
+        ],
+        fx: 309.2185363769531,
+        fy: 348.5244445800781,
+        cx: 250.0,
+        cy: 250.0,
+        prompt: "An aged crimson oven occupies the corner of a rustic kitchen, its window revealing the golden-brown crust of bread as it bakes within. Next to it, a towering, polished metallic spoon leans against a weathered brick wall, reflecting the soft kitchen light. Scattered nearby are a scattering of flour and a wooden rolling pin on a worn, marble countertop."
+    },
+    "asset/ply_files/chip_castle.ply": {
+      position: [
+        0.37440985441207886,
+        0.033073168247938156,
+        -0.019268617033958435
+      ],
+      target: [
+        -0.10369130969047546,
+        -0.017638500779867172,
+        1.4549442529678345
+      ],
+      fx: 542.8875732421875,
+      fy: 610.5682373046875,
+      cx: 250.0,
+      cy: 250.0,
+      prompt: "An imaginative scene unfolds with a castle intricately constructed from golden tortilla chips, its towers and walls standing tall amidst a flowing river of vibrant red salsa. Surrounding the edible fortress, tiny burritos, wrapped in soft tortillas with visible fillings, appear to be animated and meandering along the banks of the salsa river. The entire whimsical landscape is set upon a large plate, suggesting a playful, culinary creation.",
+    },
+    "asset/ply_files/Astronaut_riding_horse_in_forest.ply": {
+        position: [
+          -0.14457526803016663,
+          -0.011292368173599243,
+          0.010021315887570381
+        ],
+        target: [
+          0.238077312707901,
+          -0.054444219917058945,
+          1.9123499393463135
+        ],
+        fx: 355.30084228515625,
+        fy: 377.90472412109375,
+        cx: 250.0,
+        cy: 250.0,
+        prompt: "A surreal image capturing an astronaut in a white space suit, mounted on a chestnut brown horse amidst the dense greenery of a forest. The horse stands at the edge of a tranquil river, its surface adorned with floating water lilies. Sunlight filters through the canopy, casting dappled shadows on the scene.",
+    },
+    "asset/ply_files/car_parked_street.ply": {
+      position: [
+        0.011030156165361404,
+          -0.002908152062445879,
+          0.02343662641942501
+      ],
+      target: [        0.40109026432037354,
+        0.008630713447928429,
+        1.601851224899292],
+      fx: 497.0644836425781,
+      fy: 514.2404174804688,
+      cx: 250,
+      cy: 250,
+      prompt: "A car parked on a street, its rear end facing away from the viewer against a house and trees backdrop.",
+    },
+    "asset/ply_files/building_construction.ply": {
+      position: [
+        0.3454165756702423,
+        -0.030330592766404152,
+        0.11915039271116257
+      ],
+          target: [
+        -1.7461414337158203,
+        0.40125343203544617,
+        3.0691680908203125
+      ],
+      fx: 343.69769287109375,
+      fy: 377.7419738769531,
+      cx: 250,
+      cy: 250,
+      prompt: "A construction site features concrete and metal structures with scattered equipment and materials, suggesting ongoing work on a building.",
+    },
+    "asset/ply_files/rocky_cliffs_by_calm_ocean.ply": {
+      position: [
+      -0.2567259669303894,
+        -0.02123114839196205,
+        -0.01841963827610016
+      ],
+      target: [
+        0.20989394187927246,
+        0.22619807720184326,
+        1.210787296295166
+      ],
+      fx: 358.66412353515625,
+      fy: 396.33380126953125,
+      cx: 250,
+      cy: 250,
+      prompt: "A rocky shoreline with tall cliffs and a calm ocean is featured. The terrain consists of brown to gray rocks, while small patches of green vegetation are scattered throughout the area. A pale blue sky overhead suggests it's daytime.",
+    },
+    "asset/ply_files/street_with_parked_cars_and_trees.ply": {
+      position: [
+        0.6883997321128845,
+        0.08356887102127075,
+        -0.6143460273742676
+      ],
+      target: [
+        0.2162361741065979,
+        0.13015180826187134,
+        1.108211874961853
+      ],
+      fx: 326.2182922363281,
+      fy: 360.400634765625,
+      cx: 250,
+      cy: 250,
+      prompt: "A street scene with parked cars along the road and trees casting shadows. A white van is parked closer to the viewer, facing away from the camera.",
+    },
+
+    "asset/ply_files/winding_forest_path_with_platform.ply": {
+      position: [
+        -0.04006890207529068,
+        -0.06198316067457199,
+        0.2661382555961609
+      ],
+      target: [
+        -0.043936990201473236,
+        -0.12118077278137207,
+        1.6805436611175537
+      ],
+      fx: 349.195068359375,
+      fy: 400.7481384277344,
+      cx: 250,
+      cy: 250,
+      prompt: "A winding dirt path cuts through a lush forest, with tall plants and trees surrounding it. A small wooden platform peeks out from the foliage on the right side of the image, which is bathed in natural daylight creating a warm atmosphere.",
+    },
+
+    "asset/ply_files/sunlit_park_with_bench_and_building.ply": {
+      position: [
+      -0.07741347700357437,
+        0.005857785232365131,
+        0.3700568675994873
+      ],
+      target: [
+      -0.05588153004646301,
+        0.008013439364731312,
+        1.6279245615005493
+      ],
+      fx: 349.8253173828125,
+      fy: 386.3774108886719,
+      cx: 250,
+      cy: 250,
+      prompt: "The image shows a tranquil park scene with sunlight filtering through trees. A bench is on the left, and in the distance, a building can be seen, but the area remains calm and inviting.",
+    },
+
+    "asset/ply_files/golden_retriever_wearing_bowtie.ply": {
+      "position": [
+      0.1959921419620514,
+        -0.022570062428712845,
+        0.12333735823631287
+      ],
+      "target": [
+      -0.3418278396129608,
+        0.018794875591993332,
+        1.6125476360321045
+      ],
+      "fx": 495.01007080078125,
+      "fy": 570.5244140625,
+      "cx": 250,
+      "cy": 250,
+      "prompt": "A golden retriever wearing a bowtie is sitting on a bench in a park. The dog is looking at the camera, and the bowtie is visible around its neck."
+    },
+    "asset/ply_files/old_explorer_map.ply": {
+      "position": [
+        -0.07111551612615585,
+        -0.028299015015363693,
+        0.07745958119630814
+      ],
+      "target": [
+        0.11884904652833939,
+        -0.006026582792401314,
+        1.7440876960754395
+      ],
+      "fx": 328.8182067871094,
+      "fy": 370.95098876953125,
+      "cx": 250,
+      "cy": 250,
+      "prompt": "A tattered old explorer's map is lying on a table. The map is covered in dust and has been worn down by time."
+    },
+
+
+    "asset/ply_files/pizza_slice_with_soda_can.ply": {
+      "position": [
+      -0.43805888295173645,
+        -0.006580728571861982,
+        -0.034998856484889984
+      ],
+      "target": [
+      0.34386828541755676,
+        0.06876927614212036,
+        2.8246660232543945
+      ],
+      "fx": 365.2418212890625,
+      "fy": 411.68328857421875,
+      "cx": 250,
+      "cy": 250,
+      "prompt": "An untouched slice of pizza is cooling beside a half-drunk can of soda."
+    },
+    // "gaussians.ply": {
+    //   position: [0.07960191369056702, -0.0020237669814378023, 0.010686250403523445],
+    //   target: [-0.20119184255599976, -0.014328342862427235, 1.7387850284576416],
+    //   fx: 330.5714,
+    //   fy: 348.9224,
+    //   cx: 250,
+    //   cy: 250,
+    //   prompt: "A brown leather suitcase on a train platform"
+    // }
+  };
+
+  // --- Core objects (scene는 교체 가능해야 하므로 let) ---
+  let scene    = new SPLAT.Scene();
+  const camera = new SPLAT.Camera();
+  const renderer = new SPLAT.WebGLRenderer();
+  const controls = new SPLAT.OrbitControls(camera, renderer.canvas);
+  // renderer.sh_degree = 3;
+
+  container.appendChild(renderer.canvas);
+
+  // 리사이즈 대응
+  const resize = () => {
+    const rect = container.getBoundingClientRect();
+    renderer.setSize(rect.width | 0, rect.height | 0);
+  };
+  window.addEventListener("resize", resize, { passive: true });
+  resize();
+
+  // --- Loading helpers ---
+  function showLoading(msg = "Loading…") {
+    loadingText.textContent = msg;
+    loadingElm.style.display = "inline-flex";
+  }
+  function hideLoading() {
+    loadingElm.style.display = "none";
+  }
+
+  // --- PLY loader & switcher ---
+  let disposedScenes = [];
+  
+  async function loadPLY(url) {
+    showLoading(`Loading ply… 0%`);
+
+    const nextScene = new SPLAT.Scene();
+    try {
+      await SPLAT.PLYLoader.LoadAsync(url, nextScene, (p) => {
+        const pct = Math.max(0, Math.min(1, p || 0));
+        loadingText.textContent = `Loading ply… ${(pct * 100).toFixed(1)}%`;
+      });
+      disposedScenes.push(scene);
+      scene = nextScene;
+      if (plyConfigs[url]) {
+      const cfg = plyConfigs[url];
+
+      if (cfg.position) {
+        camera.position = new SPLAT.Vector3(...cfg.position);
+      }
+      if (cfg.target) {
+        controls.setCameraTarget(new SPLAT.Vector3(...cfg.target));
+      }
+      if (cfg.fx !== undefined) {
+        const rect = container.getBoundingClientRect();
+        camera.data.setSize(rect.width, rect.height);
+        camera.data.fx = cfg.fx;
+        camera.data.fy = cfg.fy;
+        camera.data.cx = cfg.cx;
+        camera.data.cy = cfg.cy;
+      }
+
+      controls.update();
+    }
+    } catch (err) {
+      console.error("PLY load failed:", err);
+      alert(`Failed to load ${url}.`);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // replace with gallery click
+  gallery.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ply-thumb");
+    if (!btn) return;
+    const src = btn.getAttribute("data-src");
+    if (src) {
+      loadPLY(src);
+      currentPromptSrc = src;   
+      setPrompt(src);           
+    }
+  });
+
+  // replace with gallery mouseover
+  gallery.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest(".ply-thumb");
+    if (!btn) return;
+    const src = btn.getAttribute("data-src");
+    if (src) setPrompt(src); 
+  });
+  gallery.addEventListener("mouseout", (e) => {
+    if (currentPromptSrc) {
+      setPrompt(currentPromptSrc);  
+    }
+  });
+
+
+  // --- auto load first PLY (based on the first button in the gallery) ---
+  const firstBtn = gallery.querySelector(".ply-thumb");
+  if (firstBtn) {
+    const firstSrc = firstBtn.getAttribute("data-src");
+    currentPromptSrc = firstSrc;
+    loadPLY(firstSrc);
+    setPrompt(firstSrc);
+  } else {
+    console.warn("No PLY in the gallery. Add <button class='ply-thumb' data-src='...'>…</button>");
+  }
+
+  function frame() {
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  setInterval(() => {
+    disposedScenes = disposedScenes.filter(s => {
+      if (typeof s.dispose === "function") {
+        try { s.dispose(); } catch {}
+      }
+      return false;
+    });
+  }, 10000);
+
+  function setPrompt(src) {
+    const body = document.getElementById("prompt-body");
+    if (plyConfigs[src] && plyConfigs[src].prompt) {
+      body.textContent = plyConfigs[src].prompt;
+    } else {
+      body.textContent = "No prompt available for this model.";
+    }
+  }
+</script>
+
+<!-- Youtube video -->
+<!-- <section class="hero is-small is-light"> -->
+  <!-- <div class="hero-body"> -->
+    <!-- <div class="container"> -->
+      <!-- Paper video. -->
+      <!-- <h2 class="title is-3">Video Presentation</h2> -->
+      <!-- <div class="columns is-centered has-text-centered"> -->
+        <!-- <div class="column is-four-fifths"> -->
+          
+          <!-- <div class="publication-video"> -->
+            <!-- TODO: Replace with your YouTube video ID -->
+            <!-- <iframe src="https://www.youtube.com/embed/JkaxUblCGz0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe> -->
+          <!-- </div> -->
+        <!-- </div> -->
+      <!-- </div> -->
+    <!-- </div> -->
+  <!-- </div> -->
+<!-- </section> -->
+<!-- End youtube video -->
+
+
+<!-- Video carousel -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3 has-text-centered">
+        Comparison with Baselines on 3DGS Generation
+      </h2>
+
+      <div id="comparison-carousel" class="carousel comparison-carousel">
+        <!-- === Slide 2 === -->
+        <div class="carousel-item">
+          <!-- Prompt -->
+          <div class="has-text-centered mb-4">
+            <p class="subtitle is-5"><em>Prompt:</em> "An Asian restaurant, possibly chinese, is depicted in a street view scene. The entrance to the restaurant is marked by a large blue sign with Chinese characters. ... . In front of the restaurant, there's a prominent gray awning. Trees and bushes add greenery to the urban setting."</p>
+          </div>
+
+          <div class="columns is-vcentered is-multiline">
+            <!-- Baseline Grid -->
+            <div class="column is-two-thirds">
+              <div class="columns is-multiline">
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chinese/director3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Director3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chinese/splatflow.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">SplatFlow</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chinese/prometheus3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Prometheus3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chinese/videorfsplat.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">VideoRFSplat</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ours -->
+            <div class="column is-one-third has-text-centered">
+              <video src="asset/qualitative_comparison/chinese/ours.mp4" autoplay muted loop playsinline 
+                      style="border: 3px solid #3273dc; border-radius: 10px;"></video>
+              <p class="has-text-weight-bold">Ours</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- === Slide 1 === -->
+        <div class="carousel-item">
+          <!-- Prompt -->
+          <div class="has-text-centered mb-4">
+            <p class="subtitle is-5"><em>Prompt:</em> "A small infant with round, silver-framed glasses perched on their nose in comfortably sitting in the center of plush white bed. The child, dressed in a pale yellow onesie, holds an open, colorful picture book with both tiny hands, appearing to gaze intently at the illustrations. Surrounding the infant are an assortment of plush toys, including a fluffy blue bear and a soft green frog, scattered about the soft, cream colored beds..."</p>
+          </div>
+
+          <div class="columns is-vcentered is-multiline">
+            <!-- Baseline Grid -->
+            <div class="column is-two-thirds">
+              <div class="columns is-multiline">
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/baby/director3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Director3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/baby/splatflow.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">SplatFlow</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/baby/prometheus3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Prometheus3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/baby/videorfsplat.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">VideoRFSplat</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ours -->
+            <div class="column is-one-third has-text-centered">
+              <video src="asset/qualitative_comparison/baby/gs.mp4" autoplay muted loop playsinline 
+                     style="border: 3px solid #3273dc; border-radius: 10px;"></video>
+              <p class="has-text-weight-bold">Ours</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- === Slide 2 === -->
+        <div class="carousel-item">
+          <!-- Prompt -->
+          <div class="has-text-centered mb-4">
+            <p class="subtitle is-5"><em>Prompt:</em> "A bluebird perched on a tree brench."</p>
+          </div>
+
+          <div class="columns is-vcentered is-multiline">
+            <!-- Baseline Grid -->
+            <div class="column is-two-thirds">
+              <div class="columns is-multiline">
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/blue_bird/director3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Director3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/blue_bird/splatflow.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">SplatFlow</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/blue_bird/prometheus3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Prometheus3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/blue_bird/videorfsplat.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">VideoRFSplat</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ours -->
+            <div class="column is-one-third has-text-centered">
+              <video src="asset/qualitative_comparison/blue_bird/ours.mp4" autoplay muted loop playsinline 
+                     style="border: 3px solid #3273dc; border-radius: 10px;"></video>
+              <p class="has-text-weight-bold">Ours</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- === Slide 2 === -->
+        <div class="carousel-item">
+          <!-- Prompt -->
+          <div class="has-text-centered mb-4">
+            <p class="subtitle is-5"><em>Prompt:</em> "An imaginative scene unfolds with a castle intricately constructed from golden tortilla chips, its towers and walls standing tall amidst a flowing river of vibrant red salsa. Surrounding the edible fortress, tiny burritos, wrapped in soft tortillas with visible fillings, appear to be animated and meandering along the banks of the salsa river. The entire whimsical landscape is set upon a large plate, suggesting a playful, culinary creation."</p>
+          </div>
+
+          <div class="columns is-vcentered is-multiline">
+            <!-- Baseline Grid -->
+            <div class="column is-two-thirds">
+              <div class="columns is-multiline">
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chips_castle/director3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Director3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chips_castle/splatflow.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">SplatFlow</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chips_castle/prometheus3d.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">Prometheus3D</p>
+                </div>
+                <div class="column is-half">
+                  <video src="asset/qualitative_comparison/chips_castle/videorfsplat.mp4" autoplay muted loop playsinline></video>
+                  <p class="has-text-centered">VideoRFSplat</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ours -->
+            <div class="column is-one-third has-text-centered">
+              <video src="asset/qualitative_comparison/chips_castle/ours.mp4" autoplay muted loop playsinline 
+                     style="border: 3px solid #3273dc; border-radius: 10px;"></video>
+              <p class="has-text-weight-bold">Ours</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+<!-- End video carousel -->
+
+
+<!-- GLB Viewer Section -->
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Interactive Viewer for Generated Pointmap</h2>
+    <h2 class="subtitle has-text-centered has-background-info-light has-text-black has-text-weight-bold p-3">
+      Below are point map generated by our method (Wan + VGGT). Click to interact.
+    </h2>
+
+    <!-- Toolbar with Loading -->
+    <div class="box" style="margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div id="glb-loading" style="display:none; align-items:center; gap:8px;">
+          <span class="loader"></span>
+          <span id="glb-loading-text">Loading…</span>
+        </div>
+      </div>
+
+      <!-- GLB Gallery -->
+      <div id="glb-gallery" style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px;">
+        <button class="glb-thumb" data-src="asset/glb_files/golden_medal_tomato.glb" title="Giant pepper, tiny medal.">
+          <img src="asset/glb_teaser/golden_medal_tomato.png" alt="Giant pepper, tiny medal.">
+          <span>Giant pepper, tiny medal.</span>
+        </button>
+
+        
+        <button class="glb-thumb" data-src="asset/glb_files/worn_shoes_by_door.glb" title="Worn shoes by door.">
+          <img src="asset/glb_teaser/worn_shoes_by_door.png" alt="Worn shoes by door.">
+          <span>Worn shoes by door.</span>
+        </button>
+
+        <button class="glb-thumb" data-src="asset/glb_files/weathered_wooden_bat.glb" title="Weathered wooden bat.">
+          <img src="asset/glb_teaser/weathered_wooden_bat.png" alt="Weathered wooden bat.">
+          <span>Weathered wooden bat.</span>
+        </button>
+
+        <button class="glb-thumb" data-src="asset/glb_files/towering_rocky_waterfall.glb" title="Towering rocky waterfall.">
+          <img src="asset/glb_teaser/towering_rocky_waterfall.png" alt="Towering rocky waterfall.">
+          <span>Towering rocky waterfall.</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Prompt Box -->
+    <div id="glb-prompt-display" class="box prompt-box">
+      <p id="glb-prompt-text" style="display:flex; gap:8px; align-items:flex-start;">
+        <span class="prompt-label" style="display:flex; gap:6px; align-items:center;">
+          <i class="fas fa-comment-dots prompt-icon"></i>
+          <strong>Prompt:</strong>
+        </span>
+        <div id="glb-prompt-body">Select a model to see its prompt here.</div>
+      </p>
+    </div>
+
+    <!-- GLB Viewer -->
+    <div id="glb-viewer-container" style="width:100%; height:500px; border:1px solid #ccc; position:relative;"></div>
+  </div>
+</section>
+
+<!-- Three.js (ESM modules) -->
+<script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+  import { GLTFLoader } from 'https://unpkg.com/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+  import { OrbitControls } from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+  
+  const glbContainer   = document.getElementById("glb-viewer-container");
+  const glbGallery     = document.getElementById("glb-gallery");
+  const glbLoadingElm  = document.getElementById("glb-loading");
+  const glbLoadingText = document.getElementById("glb-loading-text");
+  const promptBody     = document.getElementById("glb-prompt-body");
+  let currentGLBSrc    = null;
+
+  const glbConfigs = {
+    "asset/glb_files/golden_medal_tomato.glb": {
+      position: [0, 0, -0.5],
+      target:   [0, 0, 0],
+      prompt: "A dining room setting showcasing an unusually large red bell pepper with a shiny, slightly wrinkled texture, prominently placed beside a diminutive golden medal with a red ribbon on a polished wooden dining table. The pepper's vibrant hue contrasts with the medal's gleaming surface. The scene is composed in natural light, highlighting the intricate details of the pepper's surface and the reflective quality of the medal."
+    },
+    "asset/glb_files/worn_shoes_by_door.glb": {
+      position: [0, 0, -0.5],
+      target:   [0, 0, 0],
+      prompt: "Two worn-out gym shoes are placed by the front door."
+    },
+    "asset/glb_files/weathered_wooden_bat.glb": {
+      position: [0, 0, -0.5],
+      target:   [0, 0, 0],
+      prompt: "A weather-beaten wooden bat."
+    },
+    "asset/glb_files/towering_rocky_waterfall.glb": {
+      position: [0, 0, -0.5],
+      target:   [0, 0, 0],
+      prompt: "A waterfall cascades down a rocky cliff, creating an untouched landscape with a rough texture. The perspective of the image reveals a scale and height to the feature, emphasized by a slightly below vantage point."
+    }
+  };
+  
+  const glbScene = new THREE.Scene();
+  glbScene.background = new THREE.Color(0x0d0d0d);
+  
+  const glbCamera = new THREE.PerspectiveCamera(
+    60,
+    glbContainer.clientWidth / glbContainer.clientHeight,
+    0.01,
+    1000
+  );
+  glbCamera.position.set(0, 0, 2);
+  
+  const glbRenderer = new THREE.WebGLRenderer({ antialias: true });
+  glbRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  glbRenderer.setSize(glbContainer.clientWidth, glbContainer.clientHeight);
+  glbRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  glbRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  glbRenderer.toneMappingExposure = 1.0;
+  glbContainer.appendChild(glbRenderer.domElement);
+  
+  const glbControls = new OrbitControls(glbCamera, glbRenderer.domElement);
+  glbControls.enableDamping = true;
+  
+
+  glbScene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.9));
+  const glbDir = new THREE.DirectionalLight(0xffffff, 0.8);
+  glbDir.position.set(3, 5, 2);
+  glbScene.add(glbDir);
+  
+
+  const glbLoader = new GLTFLoader();
+  let glbCurrentModel = null;
+  
+  function clearGLBModel() {
+    if (!glbCurrentModel) return;
+    glbScene.remove(glbCurrentModel);
+    glbCurrentModel.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.geometry?.dispose();
+        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+        else obj.material?.dispose();
+      }
+    });
+    glbCurrentModel = null;
+  }
+  
+  function frameGLBObject(object3D, fitOffset = 1.2) {
+    const box = new THREE.Box3().setFromObject(object3D);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+  
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = THREE.MathUtils.degToRad(glbCamera.fov);
+    let dist = (maxDim / 2) / Math.tan(fov / 2);
+    dist *= fitOffset;
+  
+    glbControls.target.copy(center);
+    glbCamera.position.copy(center).add(new THREE.Vector3(0, 0, dist));
+    glbCamera.near = dist / 100;
+    glbCamera.far  = dist * 100;
+    glbCamera.updateProjectionMatrix();
+    glbControls.update();
+  }
+  
+  function setGLBPrompt(src) {
+    const cfg = glbConfigs[src];
+    promptBody.textContent = cfg?.prompt || "No prompt available for this GLB model.";
+  }
+  
+  function loadGLB(url) {
+    setGLBPrompt(url);
+    glbLoadingElm.style.display = "flex";
+    glbLoadingText.textContent  = "Loading… 0%";
+  
+    clearGLBModel();
+  
+    glbLoader.load(
+      url,
+      (gltf) => {
+        glbCurrentModel = gltf.scene;
+        glbScene.add(glbCurrentModel);
+  
+        const cfg = glbConfigs[url];
+        if (cfg?.position && cfg?.target) {
+          glbCamera.position.set(...cfg.position);
+          glbControls.target.set(...cfg.target);
+          glbControls.update();
+        } else {
+          frameGLBObject(glbCurrentModel);
+        }
+        glbLoadingElm.style.display = "none";
+      },
+      (xhr) => {
+        if (xhr.total) {
+          glbLoadingText.textContent = `Loading… ${(xhr.loaded / xhr.total * 100).toFixed(1)}%`;
+        }
+      },
+      (err) => {
+        console.error("GLB load error:", err);
+        glbLoadingText.textContent = "Failed to load GLB.";
+        setTimeout(() => (glbLoadingElm.style.display = "none"), 800);
+      }
+    );
+  }
+  
+  glbGallery.addEventListener("click", (e) => {
+  const btn = e.target.closest(".glb-thumb");
+  if (!btn) return;
+  const src = btn.getAttribute("data-src");
+  console.log("Clicked:", src);   
+  if (src) {
+    currentGLBSrc = src;
+    loadGLB(src);
+  }
+});
+  
+  const firstGLBBtn = glbGallery.querySelector(".glb-thumb");
+  if (firstGLBBtn) {
+    const firstSrc = firstGLBBtn.getAttribute("data-src");
+    currentGLBSrc = firstSrc;
+    loadGLB(firstSrc);
+  }
+  
+  function animateGLB() {
+    requestAnimationFrame(animateGLB);
+    glbControls.update();
+    glbRenderer.render(glbScene, glbCamera);
+  }
+  animateGLB();
+  
+  window.addEventListener("resize", () => {
+    const w = glbContainer.clientWidth;
+    const h = glbContainer.clientHeight;
+    glbCamera.aspect = w / h;
+    glbCamera.updateProjectionMatrix();
+    glbRenderer.setSize(w, h);
+  });
+</script>
+
+
+<!-- Paper poster -->
+<!-- <section class="hero is-small is-light"> -->
+  <!-- <div class="hero-body"> -->
+    <!-- <div class="container"> -->
+      <!-- <h2 class="title">Poster</h2> -->
+
+      <!-- TODO: Replace with your poster PDF -->
+      <!-- <iframe  src="static/pdfs/sample.pdf" width="100%" height="550"> -->
+          <!-- </iframe> -->
+        
+      <!-- </div> -->
+    <!-- </div> -->
+  <!-- </section> -->
+<!--End paper poster -->
+
+
+
+<!--BibTex citation -->
+  <section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+      <div class="bibtex-header">
+        <h2 class="title">BibTeX</h2>
+        <button class="copy-bibtex-btn" onclick="copyBibTeX()" title="Copy BibTeX to clipboard">
+          <i class="fas fa-copy"></i>
+          <span class="copy-text">Copy</span>
+        </button>
+      </div>
+      <!-- <pre id="bibtex-code"><code>@article{YourPaperKey2024,
+  title={Your Paper Title Here},
+  author={First Author and Second Author and Third Author},
+  journal={Conference/Journal Name},
+  year={2024},
+  url={https://your-domain.com/your-project-page}
+}</code></pre> -->
+    </div>
+</section>
+<!--End BibTex citation -->
+
+
+  <footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+            You are free to borrow the source code of this website, we just ask that you link back to this page in the footer. <br> </a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- Statcounter tracking code -->
+  
+<!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
+
+  <!-- End of Statcounter Code -->
+
+</body>
+</html>
