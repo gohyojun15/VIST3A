@@ -1,4 +1,4 @@
-# VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator
+# VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator (ICLR 2026)
 
 
 The official code for the paper: "Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator".
@@ -6,6 +6,7 @@ The official code for the paper: "Text-to-3D by Stitching a Multi-view Reconstru
 >  [Hyojun Go](https://gohyojun15.github.io/), [Dominik Nanhofer](https://scholar.google.com/citations?user=tFx8AhkAAAAJ&hl=en), [Goutam Bhat](https://goutamgmb.github.io/), [Prune Troung](https://prunetruong.com/), [Federico Tombari](https://federicotombari.github.io/), [Konrad Schindler](https://scholar.google.com/citations?user=FZuNgqIAAAAJ&hl=ko).
 > 
 > ETH Zurich, Google
+
 
 
 <!-- <a href="https://arxiv.org/abs/2411.16443"> -->
