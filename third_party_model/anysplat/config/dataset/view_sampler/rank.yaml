@@ -1,0 +1,14 @@
+name: rank
+
+num_target_views: 4
+num_context_views: 24
+
+min_distance_between_context_views: 8
+max_distance_between_context_views: 22
+min_distance_to_context_views: 0
+
+warm_up_steps: 0
+initial_min_distance_between_context_views: 5
+initial_max_distance_between_context_views: 7
+
+max_img_per_gpu: 24

@@ -1,0 +1,62 @@
+defaults:
+  - backbone: croco
+
+name: anysplat
+
+opacity_mapping:
+  initial: 0.0
+  final: 0.0
+  warm_up: 1
+
+num_monocular_samples: 32
+num_surfaces: 1
+predict_opacity: false
+
+gaussians_per_pixel: 1
+
+gaussian_adapter:
+  gaussian_scale_min: 0.5
+  gaussian_scale_max: 15.0
+  sh_degree: 4
+
+d_feature: 32
+
+visualizer:
+  num_samples: 8
+  min_resolution: 256
+  export_ply: false
+
+apply_bounds_shim: true
+
+gs_params_head_type: dpt_gs
+pose_free: true
+pretrained_weights: ""
+scale_align: false
+
+voxel_size: 0.001
+n_offsets: 2
+anchor_feat_dim: 83 # 32
+add_view: false
+color_attr: 3D # 3D or RGB
+mlp_type: unified
+scaffold: true
+
+# unet3d:
+#   # lifter_params:
+#   #   img_in_dim: 32
+#   #   voxel_out_dim: 32
+#   img_feature_source: dino
+#   in_channels: 83 # 32  keep same as anchor_feat_dim
+#   num_blocks: 2 # 512 -> 128 
+#   f_maps: 83 # 32
+#   # f_maps_2d: 32
+#   neck_dense_type: "UNCHANGED"
+#   neck_bound: 4
+#   use_attention: true
+#   gs_enhanced: "original"
+#   gsplat_upsample: 4
+#   occ_upsample: 1
+#   max_scaling: 10
+#   max_return: 2
+#   feature_pooling_2d: "max"
+#   gs_free_space: "free-1"

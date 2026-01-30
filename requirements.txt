@@ -1,0 +1,48 @@
+imageio[ffmpeg]
+numpy==1.26.4
+roma
+gradio
+matplotlib
+tqdm
+opencv-python
+scipy
+einops
+trimesh
+tensorboard
+pyglet<2
+huggingface-hub[torch]>=0.22
+h5py
+scikit-learn
+tensorflow
+gsplat==1.4.0
+torchmetrics[image]==1.6.0
+pillow
+diffusers==0.33.1
+transformers==4.46.3
+tokenizers==0.20.3
+accelerate==1.10.0
+pandas==2.2.3
+loguru==0.7.2
+safetensors==0.5.3
+huggingface_hub[cli]
+wandb
+plyfile
+ftfy
+spaces
+# decord
+peft==0.17.1
+scikit-video
+dacite
+jaxtyping
+lightning
+e3nn
+colorspacious
+open_clip_torch
+timm
+# open3d
+omegaconf
+scikit-image
+lpips
+
+# triton==3.0.0
+# torch_scatter==2.1.2

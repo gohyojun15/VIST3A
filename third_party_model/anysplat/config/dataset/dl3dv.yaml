@@ -1,0 +1,19 @@
+defaults:
+  - base_dataset
+  - view_sampler: bounded
+
+name: dl3dv
+roots: [datasets/dl3dv]
+
+input_image_shape: [256, 256]
+original_image_shape: [540, 960]
+cameras_are_circular: false
+
+baseline_min: 1e-3
+baseline_max: 1e2
+max_fov: 100.0
+avg_pose: false
+
+rescale_to_1cube: true
+make_baseline_1: false
+intr_augment: true

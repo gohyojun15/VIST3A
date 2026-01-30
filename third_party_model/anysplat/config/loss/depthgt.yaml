@@ -1,0 +1,3 @@
+depthgt:
+  weight: 0.1
+  type: l1+gradient

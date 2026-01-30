@@ -1,0 +1,3 @@
+lod:
+  mse_weight: 1.0
+  lpips_weight: 0.05

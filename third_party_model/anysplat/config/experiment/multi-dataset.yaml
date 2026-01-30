@@ -1,0 +1,121 @@
+# @package _global_
+
+defaults:
+  - /dataset@_group_.dl3dv: dl3dv
+  - /dataset@_group_.co3d: co3d
+  - /dataset@_group_.scannetpp: scannetpp
+  - override /model/encoder: anysplat
+  - override /model/encoder/backbone: croco
+  - override /loss: [mse, lpips, depth_consis] # ablate: opacity loss
+
+wandb:
+  name: multidataset-16gpu
+  tags: [multidataset, 448x448]
+  
+model:
+  encoder:
+    gs_params_head_type: dpt_gs
+    pose_free: true
+    intrinsics_embed_loc: encoder
+    intrinsics_embed_type: token
+    pretrained_weights: ''
+    voxel_size: 0.002
+    pred_pose: true
+    anchor_feat_dim: 128
+    gs_prune: false # ablate: opacity loss
+    pred_head_type: depth
+    freeze_backbone: false
+    distill: true
+    render_conf: false
+    conf_threshold: 0.1
+    freeze_module: patch_embed
+    voxelize: true
+    intermediate_layer_idx: [4, 11, 17, 23]
+    
+dataset:
+  dl3dv:
+    input_image_shape: [224, 448]
+    view_sampler:
+
+      num_target_views: 2
+      min_distance_between_context_views: 32
+      max_distance_between_context_views: 256
+
+      min_gap_multiplier: 3
+      max_gap_multiplier: 5
+      max_img_per_gpu: 24
+    avg_pose: false
+    intr_augment: true
+    normalize_by_pts3d: false
+    rescale_to_1cube: false
+
+  co3d:
+    input_image_shape: [224, 448]
+    view_sampler:
+
+      num_target_views: 1
+      min_distance_between_context_views: 32
+      max_distance_between_context_views: 256
+      max_img_per_gpu: 24
+
+    avg_pose: false
+    intr_augment: true
+    normalize_by_pts3d: false
+    rescale_to_1cube: false
+
+  scannetpp:
+    input_image_shape: [224, 448]
+    view_sampler:
+      num_target_views: 2
+      min_distance_between_context_views: 128
+      max_distance_between_context_views: 512
+      max_img_per_gpu: 24
+    avg_pose: false
+    intr_augment: true
+    normalize_by_pts3d: false
+    rescale_to_1cube: false
+
+optimizer:
+  lr: 2e-4
+  warm_up_steps: 1000
+  backbone_lr_multiplier: 0.1
+
+data_loader:
+  train:
+    batch_size: 1 # not used here
+    
+trainer:
+  max_steps: 30000
+  val_check_interval: 500
+  num_nodes: 2
+  accumulate_grad_batches: 1
+  precision: bf16-mixed
+
+checkpointing:
+  load: null 
+  every_n_train_steps: 200
+  save_weights_only: false
+  save_top_k: 5
+  
+train:
+  pose_loss_alpha: 1.0
+  pose_loss_delta: 1.0
+  cxt_depth_weight: 0.0
+  weight_pose: 10.0
+  weight_depth: 0.0
+  weight_normal: 0.0
+
+hydra:
+  run:
+    dir: output/exp_${wandb.name}/${now:%Y-%m-%d_%H-%M-%S}
+
+loss:
+  mse:
+    conf: false
+  lpips:
+    conf: false
+  depth_consis:
+    weight: 0.1
+    loss_type: MSE
+
+

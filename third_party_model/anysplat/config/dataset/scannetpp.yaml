@@ -1,0 +1,22 @@
+defaults:
+  - base_dataset
+  - view_sampler: rank
+
+name: scannetpp
+roots: [datasets/scannetpp]
+
+input_image_shape: [256, 256]
+original_image_shape: [690, 1035]
+cameras_are_circular: false
+
+baseline_min: 1e-3
+baseline_max: 1e2
+max_fov: 130.0 # 120.0
+metric_thre: 0.5 # aggressive metric threshold!!
+
+skip_bad_shape: true # if use dlsr and iphone, set to false
+
+rescale_to_1cube: true
+make_baseline_1: false
+intr_augment: true
+normalize_by_pts3d: false

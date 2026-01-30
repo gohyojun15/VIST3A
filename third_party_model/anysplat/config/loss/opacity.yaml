@@ -1,0 +1,3 @@
+opacity:
+  weight: 0.1
+  type: exp+mean

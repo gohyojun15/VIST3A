@@ -1,0 +1,15 @@
+defaults:
+  - base_dataset
+  - view_sampler: rank
+
+name: co3d
+roots: [datasets/co3dv2]
+
+input_image_shape: [256, 256]
+original_image_shape: [540, 960]
+cameras_are_circular: false
+
+baseline_min: 1e-3
+baseline_max: 1e2
+max_fov: 110.0
+avg_pose: false
