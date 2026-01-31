@@ -5,6 +5,7 @@ from PIL import Image
 
 
 def load_image(image_path: str, transform: torchvision.transforms.Compose):
+    # Always load as RGB and apply the same transform pipeline.
     with Image.open(image_path) as img:
         img = img.convert("RGB")
         img = transform(img)

@@ -74,7 +74,7 @@ class ScannetUnlabeledDataaset(Dataset):
         image_file_names = sorted(image_file_names, key=lambda x: int(x.split(".")[0]))
         num_frames = len(image_file_names)  # total frames in the sequence
 
-        # 1. sample frames for a unit scene
+        # Sample a random window, then pick a subset of frames for conditioning.
         frames_per_scene = random.randint(
             self.num_images_from_unit_scene, self.num_frames_per_unit_scene
         )

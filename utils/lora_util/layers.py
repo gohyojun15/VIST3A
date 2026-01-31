@@ -51,6 +51,7 @@ class Embedding(nn.Embedding, LoRALayer):
         )
         # Actual trainable parameters
         if r > 0:
+            # Low-rank factors: W ≈ W0 + (B @ A) * scaling.
             self.lora_A = nn.Parameter(self.weight.new_zeros((r, num_embeddings)))
             self.lora_B = nn.Parameter(self.weight.new_zeros((embedding_dim, r)))
             self.scaling = self.lora_alpha / self.r
@@ -127,6 +128,7 @@ class Linear(nn.Linear, LoRALayer):
         self.fan_in_fan_out = fan_in_fan_out
         # Actual trainable parameters
         if r > 0:
+            # Low-rank factors applied to the input projection.
             self.lora_A = nn.Parameter(self.weight.new_zeros((r, in_features)))
             self.lora_B = nn.Parameter(self.weight.new_zeros((out_features, r)))
             self.scaling = self.lora_alpha / self.r
@@ -167,6 +169,7 @@ class Linear(nn.Linear, LoRALayer):
             return w.transpose(0, 1) if self.fan_in_fan_out else w
 
         if self.r > 0 and not self.merged:
+            # W0x + (BA)x; LoRA branch can be dropped in eval by merging weights.
             result = F.linear(x, T(self.weight), bias=self.bias)
             result += (
                 self.lora_dropout(x)
@@ -244,6 +247,7 @@ class MergedLinear(nn.Linear, LoRALayer):
         def T(w):
             return w.transpose(0, 1) if self.fan_in_fan_out else w
 
+        # Build a block-diagonal-ish LoRA delta for grouped heads.
         delta_w = F.conv1d(
             self.lora_A.unsqueeze(0),
             self.lora_B.unsqueeze(-1),
@@ -309,6 +313,7 @@ class ConvLoRA(nn.Module, LoRALayer):
         assert isinstance(kernel_size, int)
         # Actual trainable parameters
         if r > 0:
+            # Conv LoRA implemented as low-rank update of the kernel weights.
             self.lora_A = nn.Parameter(
                 self.conv.weight.new_zeros((r * kernel_size, in_channels * kernel_size))
             )

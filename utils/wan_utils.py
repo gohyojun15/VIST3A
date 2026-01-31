@@ -26,6 +26,8 @@ from diffusers.utils.accelerate_utils import apply_forward_hook
 def compute_wan_text_embeddings(
     prompt, text_encoders, tokenizers, max_sequence_length=226, device=None
 ):
+    # Tokenize and pad to a fixed length so the UNet receives consistent shapes.
+    # Output shape: [B, max_sequence_length, hidden_dim].
     dtype = text_encoders.dtype
     prompt = [prompt] if isinstance(prompt, str) else prompt
     prompt = [prompt_clean(u) for u in prompt]
@@ -70,6 +72,7 @@ CACHE_T = 2
 class CacheState:
     """Immutable cache state to avoid in-place modifications"""
 
+    # Cache slots are used by causal convs to preserve temporal context across chunks.
     cache_list: List[Optional[Union[torch.Tensor, str]]]
     current_idx: int
 
@@ -134,6 +137,7 @@ class WanCausalConv3d(nn.Conv3d):
         self.padding = (0, 0, 0)
 
     def forward(self, x, cache_x=None):
+        # cache_x is concatenated in time to maintain causality for chunked inference.
         padding = list(self._padding)
         if cache_x is not None and self._padding[4] > 0:
             cache_x = cache_x.to(x.device)
@@ -250,6 +254,7 @@ class WanResample(nn.Module):
         new_cache_state = cache_state
 
         if self.mode == "upsample3d":
+            # For temporal upsampling, use cached frames to keep causality between chunks.
             if new_cache_state is not None:
                 idx = new_cache_state.current_idx
                 cached_x = new_cache_state.get(idx)
@@ -306,6 +311,7 @@ class WanResample(nn.Module):
         x = x.view(b, t, x.size(1), x.size(2), x.size(3)).permute(0, 2, 1, 3, 4)
 
         if self.mode == "downsample3d":
+            # For temporal downsampling, cache the last frame to align next chunk.
             if new_cache_state is not None:
                 idx = new_cache_state.current_idx
                 cached_x = new_cache_state.get(idx)
@@ -369,6 +375,8 @@ class WanResidualBlock(nn.Module):
 
         new_cache_state = cache_state
         if new_cache_state is not None:
+            # Cache a few frames for causal convs; prepend last cached frame if needed.
+            # This ensures each chunk sees immediate temporal context.
             idx = new_cache_state.current_idx
             cached_x = new_cache_state.get(idx)
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
@@ -394,6 +402,8 @@ class WanResidualBlock(nn.Module):
         x = self.dropout(x)
 
         if new_cache_state is not None:
+            # Repeat cache handling for the second conv.
+            # Keeps causal behavior consistent across both residual convs.
             idx = new_cache_state.current_idx
             cached_x = new_cache_state.get(idx)
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
@@ -436,6 +446,7 @@ class WanAttentionBlock(nn.Module):
         identity = x
         batch_size, channels, time, height, width = x.size()
 
+        # Flatten time into batch for 2D attention over spatial tokens per frame.
         x = x.permute(0, 2, 1, 3, 4).reshape(batch_size * time, channels, height, width)
         x = self.norm(x)
 
@@ -502,6 +513,7 @@ class WanMidBlock(nn.Module):
         x, new_cache_state = self.resnets[0](x, cache_state)
 
         # Process through attention and residual blocks
+        # Attention is optional and only applied when configured at this stage.
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
                 if self.gradient_checkpointing:
@@ -589,6 +601,7 @@ class WanEncoder3d(nn.Module):
     def forward(
         self, x, cache_state: Optional[CacheState] = None
     ) -> Tuple[torch.Tensor, Optional[CacheState]]:
+        # x shape: [B, C, T, H, W], outputs latent features with downsampled T/H/W.
         new_cache_state = cache_state
         if new_cache_state is not None:
             idx = new_cache_state.current_idx
@@ -610,6 +623,7 @@ class WanEncoder3d(nn.Module):
             x = self.conv_in(x)
 
         ## downsamples
+        # Each WanResample may downsample spatially and optionally temporally.
         for layer in self.down_blocks:
             if isinstance(layer, WanResidualBlock):
                 x, new_cache_state = layer(x, new_cache_state)
@@ -622,6 +636,7 @@ class WanEncoder3d(nn.Module):
         x, new_cache_state = self.mid_block(x, new_cache_state)
 
         ## head
+        # Final projection to z_dim channels before quant_conv.
         x = self.norm_out(x)
         x = self.nonlinearity(x)
 
@@ -706,6 +721,7 @@ class WanUpBlock(nn.Module):
             Tuple[torch.Tensor, Optional[CacheState]]: Output tensor and updated cache state
         """
         new_cache_state = cache_state
+        # Residual blocks refine features at current resolution.
         for resnet in self.resnets:
             if self.gradient_checkpointing:
                 x, new_cache_state = torch.utils.checkpoint.checkpoint(
@@ -715,6 +731,7 @@ class WanUpBlock(nn.Module):
                 x, new_cache_state = resnet(x, new_cache_state)
 
         if self.upsamplers is not None:
+            # Optional 2D or 3D upsampling between decoder stages.
             if self.gradient_checkpointing:
                 x, new_cache_state = torch.utils.checkpoint.checkpoint(
                     self.upsamplers[0], x, new_cache_state, use_reentrant=False
@@ -807,6 +824,7 @@ class WanDecoder3d(nn.Module):
     def forward(
         self, x, cache_state: Optional[CacheState] = None
     ) -> Tuple[torch.Tensor, Optional[CacheState]]:
+        # x shape: [B, z_dim, T, H, W], outputs reconstructed frames.
         ## conv1
         new_cache_state = cache_state
         if new_cache_state is not None:
@@ -837,6 +855,7 @@ class WanDecoder3d(nn.Module):
             x, new_cache_state = self.mid_block(x, new_cache_state)
 
         ## upsamples
+        # Each WanUpBlock may upsample spatially and optionally temporally.
         for up_block in self.up_blocks:
             if self.gradient_checkpointing:
                 x, new_cache_state = torch.utils.checkpoint.checkpoint(
@@ -846,6 +865,7 @@ class WanDecoder3d(nn.Module):
                 x, new_cache_state = up_block(x, new_cache_state)
 
         ## head
+        # Final projection back to RGB.
         x = self.norm_out(x)
         x = self.nonlinearity(x)
 
@@ -942,6 +962,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         super().__init__()
 
         self.z_dim = z_dim
+        # Each True in temperal_downsample halves the time dimension at that stage.
         self.temperal_downsample = temperal_downsample
         self.temperal_upsample = temperal_downsample[::-1]
 
@@ -999,6 +1020,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
     def _encode(self, x: torch.Tensor) -> torch.Tensor:
         """Internal encoding method that handles caching."""
+        # Encode in temporal chunks to reuse causal conv cache and reduce memory.
         cache_state = self._create_cache_state(self.encoder)
 
         ## cache
@@ -1009,14 +1031,17 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for i in range(iter_):
             cache_state.current_idx = 0
             if i == 0:
+                # First chunk: only the first frame.
                 out, cache_state = self.encoder(x[:, :, :1, :, :], cache_state)
             else:
+                # Subsequent chunks: stride by 4 frames to respect temporal downsample.
                 out_, cache_state = self.encoder(
                     x[:, :, 1 + 4 * (i - 1) : 1 + 4 * i, :, :], cache_state
                 )
                 out = torch.cat([out, out_], 2)
 
         enc = self.quant_conv(out)
+        # Split into mean/logvar for diagonal Gaussian posterior.
         mu, logvar = enc[:, : self.z_dim, :, :, :], enc[:, self.z_dim :, :, :, :]
         enc = torch.cat([mu, logvar], dim=1)
         return enc
@@ -1054,6 +1079,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self, z: torch.Tensor, return_dict: bool = True
     ) -> Union[DecoderOutput, torch.Tensor]:
         """Internal decoding method that handles caching."""
+        # Decode one latent time step at a time to preserve causal state.
         cache_state = self._create_cache_state(self.decoder)
 
         iter_ = z.shape[2]
@@ -1063,6 +1089,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for i in range(iter_):
             cache_state.current_idx = 0
             if i == 0:
+                # First step: initialize decoder cache.
                 # out, cache_state = self.decoder(x[:, :, i : i + 1, :, :], cache_state)
                 out, cache_state = torch.utils.checkpoint.checkpoint(
                     self.decoder,
@@ -1071,6 +1098,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     use_reentrant=False,
                 )
             else:
+                # Subsequent steps: append decoded frames to output.
                 # out_, cache_state = self.decoder(x[:, :, i : i + 1, :, :], cache_state)
                 out_, cache_state = torch.utils.checkpoint.checkpoint(
                     self.decoder,
@@ -1080,6 +1108,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 )
                 out = torch.cat([out, out_], 2)
 
+        # Clamp to match typical VAE output range used in diffusion pipelines.
         out = torch.clamp(out, min=-1.0, max=1.0)
 
         if not return_dict:
@@ -1132,11 +1161,14 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return_dict (bool, *optional*, defaults to True):
                 Whether or not to return a [DecoderOutput] instead of a plain tuple.
         """
+        # Full VAE pass: encode -> sample/mode -> decode.
         x = sample
         posterior = self.encode(x).latent_dist
         if sample_posterior:
+            # Stochastic sampling during training.
             z = posterior.sample(generator=generator)
         else:
+            # Deterministic mode for evaluation/reconstruction.
             z = posterior.mode()
         dec = self.decode(z, return_dict=return_dict)
         return dec

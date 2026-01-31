@@ -26,6 +26,7 @@ def compute_metrics(pred_image, image):
 
 
 def main(args: argparse.Namespace):
+    # Expects outputs in: output_dir/images/<seq>/{gt,pred}/000000.png ...
     image_path = Path(args.output_dir) / "images"
     to_tensor = transforms.ToTensor()
 

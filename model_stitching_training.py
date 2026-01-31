@@ -54,6 +54,8 @@ def save_checkpoint(path, epoch, stitched_model, optimizer, scheduler, args):
         save_folder_for_epoch, f"stitched_model_epoch_{epoch}.pth"
     )
     logger.info(f"Saving model at epoch {epoch}.")
+    # Store only trainable pieces (LoRA + stitching layer + special tokens).
+    # This keeps checkpoints small and avoids duplicating the base AnySplat weights.
     state_dict = {
         "lora": lora_state_dict(stitched_model.stitched_3d_model, bias="lora_only"),
         "stitching_layer": stitched_model.stitching_layer.state_dict(),
@@ -94,6 +96,8 @@ def training_one_epoch_loop(
         # ──────────────────────────────────────────────────────────────────────
         # 0. move data to GPU
         # ──────────────────────────────────────────────────────────────────────
+        # Randomize number of context views per iteration and broadcast to all ranks.
+        # This stabilizes training when view count varies across scenes.
         if dist.get_rank() == 0:
             # used_view_for_this_iter = random.choice([9, 13])
             used_view_for_this_iter = random.choice([9, 13, 17, 21])
@@ -124,6 +128,7 @@ def training_one_epoch_loop(
             # ──────────────────────────────────────────────────────────────────────
             with torch.no_grad():
                 if isinstance(feed_forward_model, AnySplat):
+                    # AnySplat expects images in [0, 1] and shape (B, V, C, H, W).
                     ff_out = feed_forward_model.inference(
                         rearrange(
                             (feedforward_img + 1) * 0.5, "b c v h w -> b v c h w"
@@ -134,6 +139,7 @@ def training_one_epoch_loop(
         # ──────────────────────────────────────────────────────────────────────
         # 3. loss
         # ──────────────────────────────────────────────────────────────────────
+        # TaskLossAnySplat returns a dict of individual terms + "total_loss".
         loss = loss_criterion(stitched_out, ff_out)
 
         if isinstance(feed_forward_model, AnySplat):
@@ -210,6 +216,7 @@ def main(args):
 
     lora_cfg = parse_lora_mode(args.lora_config)
     # parameter freeze
+    # Only the stitching layer and LoRA weights are trainable.
     for param in stitched_model.diffusion_vae.parameters():
         param.requires_grad = False
     for param in stitched_model.stitching_layer.parameters():

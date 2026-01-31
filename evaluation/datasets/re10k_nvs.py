@@ -42,7 +42,7 @@ def rescale_image_w_crop(
     new_h = round(H * scale)
     new_w = round(W * scale)
 
-    # rescale first
+    # Rescale for VAE input, then center-crop to a square.
     image_first = image.resize((new_w, new_h), resample=lanczos)
 
     # rescale intrinsic
@@ -68,7 +68,7 @@ def rescale_image_w_crop(
     intrinsic[0, 2] -= l
     intrinsic[1, 2] -= t
 
-    # Feedforward image scale
+    # Feedforward image scale (can be different from VAE size).
     H, W = map(float, image_first.size)
     scale = output_width_2 / min(H, W)
     final_new_h = round(H * scale)
@@ -104,6 +104,7 @@ class Re10KNVSDataset(Dataset):
         self.split = split
 
         if osp.exists(cache_file):
+            # Cache stores pre-parsed intrinsics/extrinsics for faster startup.
             print(f"[Re10K-{split}] Loading from cache file: {cache_file}")
             self.metadata = np.load(cache_file, allow_pickle=True).item()
             self.sequence_list = sorted(list(self.metadata.keys()))
@@ -117,6 +118,7 @@ class Re10KNVSDataset(Dataset):
                 self.sequence_list = os.listdir(Re10K_DIR)
 
             self.metadata = {}
+            # Build metadata by reading per-sequence annotations.json.
             for seq in tqdm(
                 self.sequence_list, desc=f"[Re10K-{split}] Creating metadata..."
             ):
@@ -163,9 +165,8 @@ class Re10KNVSDataset(Dataset):
     def __getitem__(self, idx_N):
         """Fetch item by index and a dynamic variable n_per_seq."""
 
-        # Different from most pytorch datasets,
-        # here we not only get index, but also a dynamic variable n_per_seq
-        # supported by DynamicBatchSampler
+        # Different from most datasets: we receive (sequence_index, n_per_seq)
+        # to sample a variable number of frames per sequence.
 
         index, n_per_seq = idx_N
         sequence_name = self.sequence_list[index]
@@ -191,6 +192,7 @@ class Re10KNVSDataset(Dataset):
         if self.sort_by_filename:
             annos = sorted(annos, key=lambda x: x["filepath"])
 
+        # Pre-allocate lists for images and camera params for consistent ordering.
         image_paths: list = [""] * len(annos)
         images: list = [0] * len(annos)
         vae_images: list = [0] * len(annos)

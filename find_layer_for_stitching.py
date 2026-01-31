@@ -27,6 +27,7 @@ def unfold3d(x, kernel_size, stride, padding, dilation=(1, 1, 1)):
     dilation      : (dT, dH, dW)
     result shape  : (N, C, kT, kH, kW, T_out, H_out, W_out)
     """
+    # This avoids explicit im2col allocation by using as_strided views.
     kT, kH, kW = kernel_size
     sT, sH, sW = stride
     pT, pH, pW = padding
@@ -59,6 +60,7 @@ def fit_conv3d_streaming(
     Solve (XᵀX + λI)W = XᵀY  without ever instantiating X.
     Result is written directly into `conv.weight` (+ bias if present).
     """
+    # Streaming ridge regression: accumulate XtX/XtY across batches to avoid O(N*d) memory.
     device = conv.weight.device
     kT, kH, kW = conv.kernel_size
     C_in = conv.in_channels
@@ -160,6 +162,8 @@ def extract_features(
     vae_model: torch.nn.Module,
     data_loader: torch.utils.data.DataLoader,
 ):
+    # Extract latent features from VAE and intermediate AnySplat encoder blocks.
+    # Features are stored in float16 on CPU to keep memory usage manageable.
     batch_size = data_loader.batch_size
     vae_features = []
     feedforward_features = {}
@@ -251,6 +255,10 @@ def main(args: argparse.Namespace):
     )
 
     # First step: extract features and save them
+    # Pipeline:
+    # 1) Extract VAE + feedforward features.
+    # 2) Fit a Conv3D stitching layer per encoder block.
+    # 3) Rank blocks by reconstruction MSE.
     os.makedirs(args.feature_save_path, exist_ok=True)
     feature_file_path = os.path.join(
         args.feature_save_path,

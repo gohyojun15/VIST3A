@@ -10,6 +10,7 @@ def set_default_arg(key: str, default_value: str):
     """
     check if `key` in arguments, else append default value `key=value` to argument list
     """
+    # Used by evaluation scripts to inject defaults when launched from notebooks.
     has_key = any(arg.startswith(f"{key}=") for arg in sys.argv)
     if not has_key:
         sys.argv.append(f"{key}={default_value}")
@@ -64,6 +65,7 @@ def write_csv(file_path: str, data_dict: dict):
     if not osp.isfile(file_path):
         new_row.to_csv(file_path, index=False)
     else:
+        # Append row while preserving existing columns.
         existing_data = pd.read_csv(file_path)
         updated_data = pd.concat([existing_data, new_row], ignore_index=True)
         updated_data.to_csv(file_path, index=False)

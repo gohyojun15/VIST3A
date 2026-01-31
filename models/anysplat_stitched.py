@@ -61,6 +61,8 @@ class TaskLossAnySplat:
         pass
 
     def __call__(self, stitched_out: tuple, ff_out: tuple):
+        # Loss aligns stitched outputs to the frozen feedforward AnySplat outputs.
+        # Each term targets a specific prediction head (depth, Gaussians, pose, etc.).
         (
             stitched_encoder_output,
             stitched_anchor_feats,
@@ -145,6 +147,7 @@ class AnySplatStitched(AnySplat):
         self.load_state_dict(model.state_dict())
         self.stitching_layer = stitching_layer
 
+        # "enc_blocks_k" -> stitch after k encoder blocks.
         self.stitched_layer_index = int(stitching_layer.split("_")[-1])
 
         # Convert the model to a stitched model
@@ -167,12 +170,14 @@ class AnySplatStitched(AnySplat):
         B, c, S, h, w = context_image.shape
         b, lc, v, lh, lw = context_latent.shape
 
+        # context_image is expected in [-1, 1]; AnySplat inference uses [0, 1].
         context_image = rearrange(context_image, "b c v h w -> b v c h w")
         context_image = (context_image + 1) / 2  # have to check
 
         """
         patch_embed forward
         """
+        # Tokens: flatten spatial grid, prepend cls/register tokens, add pos enc.
         x = rearrange(context_latent, "b c v h w -> (b v) (h w) c")
         x = torch.cat(
             [
@@ -240,6 +245,7 @@ class AnySplatStitched(AnySplat):
         output_list = []
         layer_idx = 0
 
+        # Intermediate layers to tap for camera head; indices refer to AA depth.
         intermediate_layer_idx = [4, 11, 17, 23]  # To confirm once again
         if intermediate_layer_idx is not None:
             required_layers = set(intermediate_layer_idx)
@@ -300,6 +306,8 @@ class AnySplatStitched(AnySplat):
 
             if intermediate_layer_idx is not None:
                 for i in range(len(frame_intermediates)):
+                    # layer_idx advances by aa_block_size each inner step.
+                    # current_layer corresponds to absolute depth in the AA stack.
                     current_layer = layer_idx + i
                     if current_layer in required_layers:
                         # concat frame and global intermediates, [B x S x P x 2C]
@@ -341,12 +349,14 @@ class AnySplatStitched(AnySplat):
             )  # only for debug
 
             if self.encoder.cfg.pred_head_type == "point":
+                # Point head predicts 3D points directly from tokens.
                 pts_all, pts_conf = self.encoder.point_head(
                     aggregated_tokens_list,
                     images=context_image,  # TODO: check the image resolution and range
                     patch_start_idx=patch_start_idx,
                 )
             elif self.encoder.cfg.pred_head_type == "depth":
+                # Depth head predicts depth maps then unprojects to 3D points.
                 if self.grad_checkpointing:
                     depth_map, depth_conf = checkpoint(
                         self.encoder.depth_head,
@@ -377,6 +387,7 @@ class AnySplatStitched(AnySplat):
                 conf_valid_mask = torch.ones_like(depth_conf, dtype=torch.bool)
 
             if self.grad_checkpointing:
+                # gaussian_param_head outputs per-pixel Gaussian parameters + confidence.
                 out = checkpoint(
                     self.encoder.gaussian_param_head,
                     aggregated_tokens_list,
@@ -406,6 +417,7 @@ class AnySplatStitched(AnySplat):
 
             neural_feats_list, neural_pts_list = [], []
             if self.encoder.cfg.voxelize:
+                # Optional voxelization branch for stability; pads to max voxel count.
                 print("voxelize is enabled")
                 for b_i in range(b):
                     if self.grad_checkpointing:
@@ -467,6 +479,7 @@ class AnySplatStitched(AnySplat):
                 .view(1, 1, 1, 4)
                 .repeat(b, v, 1, 1)
             )
+            # Normalize intrinsics by image width/height for downstream modules.
             intrinsic = intrinsic.clone()  # Create a new tensor
             intrinsic = torch.stack(
                 [intrinsic[:, :, 0] / w, intrinsic[:, :, 1] / h, intrinsic[:, :, 2]],
@@ -475,6 +488,7 @@ class AnySplatStitched(AnySplat):
             # gaussians
             # pred_pose_enc_list
             pred_context_pose = dict(
+                # Convert to camera-to-world by inverting extrinsics.
                 extrinsic=torch.cat([extrinsic, extrinsic_padding], dim=2).inverse(),
                 intrinsic=intrinsic,
             )

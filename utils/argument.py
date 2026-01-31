@@ -156,6 +156,7 @@ def add_common_data_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
         default=448,
         help="Image resolution for feedforward model",
     )
+    # These two resolutions can differ because AnySplat and Wan VAE use different input sizes.
     return parser
 
 
@@ -251,6 +252,7 @@ def add_stitching_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         metavar="CONV_SPEC",
         help="See --help in training script for grammar.",
     )
+    # parse_conv_spec converts this string into a ConvSpec object with kernel/stride/padding.
     g.add_argument(
         "--lora_config",
         type=str,
@@ -338,6 +340,7 @@ def training_vdm_argument() -> argparse.ArgumentParser:
       (keeps this module clean and avoids argparse-internal hacks).
     """
     parser = make_parser("Training VDM argument")
+    # VDM fine-tuning uses the same stitching data args but no warmup schedule.
     add_run_and_logging_args(parser)
     add_training_loop_args(parser)
     add_model_selection_args(parser)

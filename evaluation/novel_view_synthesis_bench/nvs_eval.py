@@ -43,6 +43,7 @@ def load_stitching_model(args: argparse.Namespace):
         dropout=lora_cfg.dropout,
         fan_in_fan_out=lora_cfg.fan_in_fan_out,
     )
+    # Load only the trainable pieces: LoRA + stitching layer + special tokens.
     state_dict = torch.load(
         args.checkpoint_path, weights_only=False, map_location="cpu"
     )
@@ -84,6 +85,7 @@ def inference_nvs(
     model: torch.nn.Module,
     target_view_index: list[int],
 ):
+    # Split views into context vs target; duplicate last context for AnySplat API.
     source_index = [i for i in list(range(len(images))) if i not in target_view_index]
     ctx_images = images.unsqueeze(0).to("cuda")[:, source_index]
     ctx_images = torch.cat((ctx_images, ctx_images[:, -1].unsqueeze(1)), dim=1)

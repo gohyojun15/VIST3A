@@ -13,6 +13,7 @@ from .layers import Conv2d, Linear, LoRALayer
 
 
 def mark_only_lora_as_trainable(model: nn.Module, bias: str = "none") -> None:
+    # Freeze all params except LoRA (and optionally biases).
     for n, p in model.named_parameters():
         if "lora_" not in n:
             p.requires_grad = False
@@ -31,6 +32,7 @@ def mark_only_lora_as_trainable(model: nn.Module, bias: str = "none") -> None:
 
 
 def lora_state_dict(model: nn.Module, bias: str = "none") -> Dict[str, torch.Tensor]:
+    # Export only LoRA (and optionally bias) weights for lightweight checkpoints.
     my_state_dict = model.state_dict()
     if bias == "none":
         return {k: my_state_dict[k] for k in my_state_dict if "lora_" in k}
@@ -65,6 +67,7 @@ class LoraConfig:
 
 def parse_lora_mode(spec: str):
     cfg = LoraConfig()  # start from defaults
+    # Spec format: r<rank>,a<alpha>,d<dropout>,b<bias>,t<targets>,f<0/1>,enc,fix_head
     pattern = re.compile(
         r"""
         (?P<key>[radbf t])            # first letter
@@ -141,6 +144,7 @@ def add_lora(
     dropout: float = 0.0,
     fan_in_fan_out: bool = False,
 ):
+    # Replace target Linear/Conv2d modules with LoRA-wrapped versions in-place.
     for full_name, module in list(model.named_modules()):
         if not isinstance(module, nn.Linear) and not isinstance(module, nn.Conv2d):
             continue

@@ -17,6 +17,7 @@ def load_feedforward_model(args: argparse.Namespace, device: torch.device):
     """
     if args.feedforward_model == "anysplat":
         logger.info(f"Loading AnySplat model with device {device}")
+        # Uses public Hugging Face weights; customize here for local checkpoints.
         model = AnySplat.from_pretrained(
             "lhjiang/anysplat",
         )
@@ -37,6 +38,7 @@ def load_vae(args: argparse.Namespace, device: torch.device):
             "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"  # maybe 14B and 1.3B weight are same.
         )
         logger.info(f"Loading Wan VAE from {model_id} with device {device}")
+        # Only the VAE subfolder is needed for stitching.
         video_vae = AutoencoderKLWan.from_pretrained(
             model_id, subfolder="vae", torch_dtype=torch.float32
         )
@@ -54,6 +56,7 @@ def cast_to_bfloat16(model: torch.nn.Module):
     """
     with torch.no_grad():
         for name, module in model.named_modules():
+            # Keep heads in fp32 for stability; cast the rest to bfloat16 for speed/memory.
             if "head" in str.lower(name):
                 continue
             if isinstance(module, torch.nn.Conv2d):

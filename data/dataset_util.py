@@ -18,6 +18,8 @@ def _build_single_stitching_dataset(
     feedforward_image_resolution: int,
     augmentation: bool = False,
 ):
+    # Map dataset names to loader classes and expected directory layouts.
+    # Add new datasets here and in the README.
     if name == "dl3dv":
         return DL3DVStitchingDataset(
             root_path=root_path,

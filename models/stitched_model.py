@@ -25,6 +25,10 @@ class StitchVAE3D(nn.Module):
         """
 
         super().__init__()
+        # High-level flow:
+        # 1) Encode video frames with the diffusion VAE.
+        # 2) Upsample VAE latents to match the feedforward model's token grid.
+        # 3) Map latents into the feedforward model via a learnable stitching layer.
         self.device = device
         self.diffusion_vae = diffusion_vae
         self.vae_latent_dimension = self.get_vae_latent_dimension(
@@ -46,6 +50,8 @@ class StitchVAE3D(nn.Module):
         if isinstance(diffusion_vae, AutoencoderKLWan) or isinstance(
             diffusion_vae, AutoencoderKLWan_wan
         ):
+            # WAN VAE uses a fixed temporal length (T=13) and 8x spatial downsampling.
+            # C=16 is WAN's latent channel dimension. If you swap VAEs, update these.
             T = 13  # hardcoded for WAN
             H = resolution // 8
             W = resolution // 8
@@ -61,6 +67,8 @@ class StitchVAE3D(nn.Module):
         self, feedforward_model: nn.Module, stitching_layer: str
     ):
         if isinstance(feedforward_model, AnySplat):
+            # Wrap AnySplat so it can accept latents at a chosen encoder block.
+            # feedforward_dimension describes the expected latent/token grid size.
             model = AnySplatStitched(feedforward_model, stitching_layer)
             T = 13  # hardcoded for WAN
             C = 1024  # anysplat latent dimension
@@ -76,11 +84,14 @@ class StitchVAE3D(nn.Module):
         stitching_layer_config: str,
         stitching_layer_init_path: str = None,
     ):
+        # The stitching layer maps VAE latents (C=16) to AnySplat token channels (C=1024).
         stitching_layer = stitching_layer_config.build(
             in_channels=self.vae_latent_dimension[1]
         )
 
         def upsampling_layer(x):
+            # WAN VAE uses temporal stride 4; upsample time back to original length.
+            # Spatial size is aligned to the VAE latent grid (resolution//8).
             T_vae = x.shape[2]
             T_original = (T_vae - 1) * 4 + 1
             x = torch.nn.functional.interpolate(
@@ -117,6 +128,7 @@ class StitchVAE3D(nn.Module):
         Returns:
             latents (torch.Tensor): the latent variables, shape (B, C_out, T_out, H_out, W_out)
         """
+        # images are expected in [-1, 1] range and channels-first.
         # we suppose that diffusion_vae follows diffuser's convention.
         latents = self.diffusion_vae.encode(images).latent_dist.sample()
         if decode:

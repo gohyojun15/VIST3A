@@ -137,8 +137,10 @@ class DL3DVStitchingDataset(Dataset):
                 )
             )
 
-            # our frame sampling logic
-            # 1. randomly sample frames_per_scene in [num_images_from_unit_scene, num_frames_per_unit_scene]
+            # Sampling strategy:
+            # 1) Choose a random window length in [num_images_from_unit_scene, num_frames_per_unit_scene].
+            # 2) Randomly choose a start index for that window.
+            # 3) Randomly pick num_images_from_unit_scene frames within the window.
             frames_per_scene = random.randint(
                 self.num_images_from_unit_scene, self.num_frames_per_unit_scene
             )

@@ -12,6 +12,7 @@ DEVICE = None
 
 
 def _find_free_port():
+    # Bind to port 0 to let the OS choose a free port for single-node DDP.
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(("", 0))
@@ -26,6 +27,7 @@ def setup_dist():
         return
 
     if os.environ.get("MASTER_ADDR", None) is None:
+        # Default to single-process DDP setup if not launched by torchrun.
         hostname = socket.gethostbyname(socket.getfqdn())
         os.environ["MASTER_ADDR"] = hostname
         os.environ["RANK"] = "0"
@@ -56,6 +58,7 @@ def device():
 
 def torch_device_setup():
     assert torch.cuda.is_available(), "We basically require GPUs."
+    # Initialize distributed and pin each rank to a GPU.
     setup_dist()
     torch_device = torch.device(device())
     dist.barrier()
