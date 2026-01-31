@@ -59,18 +59,93 @@ We will be back with Demo.
 TODO:
 ``` -->
 
-## Data Preparation
+## Data Preparation for training and evaluation
 Please see [`data/Readme.md`](data/Readme.md) for data preparation instructions.
 
 
 ## 🧠 Training
 
 ### 🩹 Model stitching
-```
+Model stitching connects a video diffusion model latent space with a multi-view reconstruction network (AnySplat) such that the combined VAE produces 3D Gaussian splats by leveraging pretrained reconstruction network weights.
 
-```
+This process has two stages:
+
+1. Identify the optimal stitching layer in the reconstruction network
+2. Fine-tune the stitched model using LoRA adapters
+
+---
+
+#### Step 1: Finding the Stitching Layer
+
+The goal of this step is to find an intermediate layer in the multi-view reconstruction network whose feature distribution best matches the VAE latent space of the video diffusion model.
+
+We perform this by:
+- Extracting intermediate features from candidate layers
+- Comparing their linear transferability against VAE latents
+- Selecting the layer with the best alignment
+  ```
+  python find_layer_for_stitching.py \
+      --batch_size 4 \
+      --dataset dl3dv:/path/to/DL3DV-ALL-960P \
+      --num_frames_per_unit_scene 50 \
+      --num_images_from_unit_scene 13 \
+      --resolution 512 \
+      --feedforward_resolution 448 \
+      --feature_save_path initialization \
+      --iterations_for_feature_extraction 100 \
+      --stitching_layer_config conv3d_k5x3x3_o1024_s1x2x2_p2x1x1
+  ```
+The output features and statistics are saved to: `initialization/`
+
+⚠️ Important Note: The stitching layer must produce feature maps with the correct spatial and temporal resolution expected by the stitched model. Please be cautious to set the `--stitching_layer_config` argument appropriately.
+
+---
+
+#### Step 2: Stitching and Fine-tuning
+Once the stitching layer is selected:
+
+- AnySplat is stitched to the video VAE by chopping the network at the selected layer
+- The stitched model is fine-tuned using LoRA adapters on the DL3DV dataset
+  ```
+  NPROC_PER_NODE=4
+  MASTER_PORT=29510
+
+  python -m torch.distributed.run \
+    --nproc_per_node ${NPROC_PER_NODE} \
+    --master_port ${MASTER_PORT} \
+    model_stitching_training.py \
+    --stitching_layer_location enc_blocks_2 \ # specify the layer location based on Step 1
+    --stitching_layer_config conv3d_k5x3x3_o1024_s1x2x2_p2x1x1 \
+    --resolution 512 \
+    --feedforward_resolution 448 \
+    --initialization_weight_path initialization/state_dict_enc_blocks_2.pt \ # path to the stitching layer weights from Step 1
+    --dataset scannet:/path/to/scannet_preprocess/scans \
+    --dataset dl3dv:/path/to/DL3DV-ALL-960P \
+    --lora_config r64,a32,d0.0,f0 \
+    --num_frames_per_unit_scene 50 \
+    --num_images_from_unit_scene 21 \
+    --batch_size 3 \
+    --num_epochs 30 \
+    --learning_rate 2e-4 \
+    --weight_decay 0.0 \
+    --warmup_steps 500 \
+    --save_path trained_checkpoint/wan_anysplat_stitching \
+    --wandb_logging True \
+    --wandb_project_name stitching_wan_anysplat \
+    --exp_name wan_anysplat_stitching \
+    --resume_checkpoint_path (optional): path to resume checkpoint 
+  ```
 
 ### 🎯 Reward Alignment
+```
+TODO:
+```
+
+## 🚩 Evaluation
+### Model stitching
+
+#### Checkpoints 
+
 ```
 TODO:
 ```
