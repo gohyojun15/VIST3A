@@ -142,17 +142,59 @@ TODO:
 ```
 
 ## 🚩 Evaluation
+
+
 ### Model stitching
+We evaluate the stitched AnySplat models on novel view synthesis (NVS) to assess how well the stitched latent space preserves 3D consistency and rendering quality compared to the original AnySplat model.
 
-#### Checkpoints 
+We follow the same evaluation protocol as in the paper and benchmark on the RealEstate10K (RE10K) dataset.
 
-```
-TODO:
-```
+#### Evaluation command:
+1) Inference (render novel views):
+    ```
+    export PYTHONPATH=$(pwd)
+    python evaluation/novel_view_synthesis_bench/nvs_eval.py \
+      --feedforward_model anysplat \
+      --video_model wan \
+      --stitching_layer_location enc_blocks_2 \
+      --stitching_layer_config conv3d_k5x3x3_o1024_s1x2x2_p2x1x1 \
+      --lora_config r64,a32,d0.0,f0 \
+      --resolution 512 \
+      --feedforward_resolution 448 \
+      --dataset re10k:/scratch2/dataset_deliver/realestate10k_test \
+      --seq_id_map evaluation/datasets/re10k_indexmap.json \
+      --output_dir [your output directory] \
+      --checkpoint_path [your stitched_model_checkpoint.pth] 
+    ```
+2) Compute PSNR / SSIM / LPIPS:
+    ```
+    export PYTHONPATH=$(pwd)
+    python evaluation/novel_view_synthesis_bench/calculate_metric.py \
+      --dataset re10k:/scratch2/dataset_deliver/realestate10k_test \
+      --seq_id_map evaluation/datasets/re10k_indexmap.json \
+      --output_dir [your_output_dir]
+    ```
+
+#### 📦 Checkpoints
+We release two stitched AnySplat checkpoints used for evaluation.
+
+> **Note on evaluation indices**
+> The evaluation index set differs from the one reported in the paper.
+> Due to automatic file cleanup on our cluster, the original evaluation index files were lost.
+> Therefore, we re-ran all evaluations using newly generated evaluation indices.
+
+Checkpoint download scripts are provided in[download_checkpoints.sh](download_checkpoints.sh).
+
+#### 📊 Quantitative Results
+
+| Model | Description | Checkpoint | PSNR  | LPIPS | SSIM |
+|-------|-------------|------------|---------|---------|--------|
+| Anysplat-stitched | Stitched AnySplat model (as described in the paper) | [anysplat_stitched.pth](https://huggingface.co/HJGO/VIST3A/resolve/main/anysplat_stitched.pth?download=true) | 20.94 | 0.6944 | 0.2383 |
+| Anysplat-stitched-extended | Extended training (+30 epochs, 21-frame coverage) | [anysplat_stitched_21_frame_extended.pth](https://huggingface.co/HJGO/VIST3A/resolve/main/anysplat_stitched_21_frame_extended.pth?download=true) | 21.00 | 0.7047 | 0.2310 |
+|      AnySplat original     |  Original AnySplat model without stitching |   -  |       20.57 | 0.6858 | 0.2428 | 
 
 
 ## 🙏 Acknowledgements
 We build upon open-source implementations of video LDMs (Wan, CogVideoX, HunyuanVideo, SVD), multi-view recon (AnySplat, VGGT, MVDust3R), and Gsplat. Thanks to the respective authors and communities.
 
 I really appreciate [Yongwei Chen](https://cyw-3d.github.io/) who helped me a lot with verifying our code before the release.
-
