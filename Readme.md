@@ -40,6 +40,12 @@ VIST3A is a framework for text-to-3D generation that combines a multi-view recon
   - [ ] Evaluation code
   - [ ] Demo script / noteboo
 
+### Release text annotations for datasets
+- [ ] DL3DV-ALL-960P
+- [ ] RealEstate10K (Not used for this work, but used for previous works)
+- [ ] ACID
+- [ ] MVImgNet
+
 
 ## 📦 Installation
 - GPU requirements: For all experiments, we used NVIDIA 4 x NVIDIA GH200 GPUs. 
