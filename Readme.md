@@ -1,4 +1,4 @@
-# [ICLR 2026] VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator 
+# [ICLR 2026 Oral] VIST3A: Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator 
 
 
 The official code for the paper: "Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator".
@@ -13,9 +13,27 @@ The official code for the paper: "Text-to-3D by Stitching a Multi-view Reconstru
 <a href="https://gohyojun15.github.io/VIST3A/">
   <img src="https://img.shields.io/badge/Project%20Page-Website renewal-brightgreen">
 </a>
-
+<a href="https://openreview.net/forum?id=kI27Niy4xY">
+  <img src="https://img.shields.io/badge/OpenReview-Paper-blue">
+</a>
 
 https://github.com/user-attachments/assets/8610f2ac-82cf-4c37-b4e0-6d8d8ff92c6f
+
+
+## 📑 Table of Contents
+
+- [🔥 Highlights](#-highlights)
+- [📦 Installation](#-installation)
+- [🚀 Quickstart](#-quickstart)
+- [Data Preparation for training and evaluation](#data-preparation-for-training-and-evaluation)
+- [🧠 Training](#-training)
+  - [🩹 Model stitching](#-model-stitching)
+    - [Step 1: Finding the Stitching Layer](#step-1-finding-the-stitching-layer)
+    - [Step 2: Stitching and Fine-tuning](#step-2-stitching-and-fine-tuning)
+  - [🎯 Reward Alignment](#-reward-alignment)
+- [🚩 Evaluation](#-evaluation)
+  - [Model stitching](#model-stitching-1)
+  - [VIST3A (Wan + AnySplat) evaluation](#vist3a-wan--anysplat-evaluation)
 
 
 ## 🔥 Highlights
@@ -341,3 +359,18 @@ We release reward-aligned LoRA checkpoints for both Wan 2.1-1.3B and Wan 2.1-14B
 We build upon open-source implementations of video LDMs (Wan, CogVideoX, HunyuanVideo, SVD), multi-view recon (AnySplat, VGGT, MVDust3R), and Gsplat. Thanks to the respective authors and communities.
 
 I really appreciate [Yongwei Chen](https://cyw-3d.github.io/) who helped me a lot with verifying our code before the release.
+
+
+## Citation
+If you find this project useful, please cite:
+
+```
+@inproceedings{
+  go2026texttod,
+  title={Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator},
+  author={Hyojun Go and Dominik Narnhofer and Goutam Bhat and Prune Truong and Federico Tombari and Konrad Schindler},
+  booktitle={The Fourteenth International Conference on Learning Representations},
+  year={2026},
+  url={https://openreview.net/forum?id=kI27Niy4xY}
+}
+```
