@@ -12,3 +12,5 @@ trained_checkpoints/
 # stitching evaluation cache & result directory.
 evaluation/datasets/re10k_nvs_cache.npy
 nvs_evaluation_result
+
+checkpoints

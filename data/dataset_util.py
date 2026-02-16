@@ -103,18 +103,10 @@ def create_vdm_tuning_dataloader(
     for n, r in datasets:
         if n == "text":
             text_dataset = TextPromptDataset(r)
-            text_sampler = DistributedSampler(
-                text_dataset,
-                num_replicas=dist.get_world_size(),
-                rank=dist.get_rank(),
-                shuffle=True,
-                seed=22,
-                drop_last=True,
-            )
             text_dataloader = DataLoader(
                 text_dataset,
                 batch_size=1,
-                sampler=text_sampler,
+                sampler=None,
                 shuffle=False,
                 num_workers=1,
                 collate_fn=TextPromptDataset.collate_fn,
@@ -127,17 +119,10 @@ def create_vdm_tuning_dataloader(
                 image_resolution=args.resolution,
                 text_annotation_path="data/dl3dv_text_label_980P.json",
             )
-            dl3dv_sampler = DistributedSampler(
-                dl3dv_dataset,
-                num_replicas=dist.get_world_size(),
-                rank=dist.get_rank(),
-                shuffle=True,
-                seed=22,
-            )
             dl3dv_dataloader = DataLoader(
                 dl3dv_dataset,
                 batch_size=args.batch_size,
-                sampler=dl3dv_sampler,
+                sampler=None,
                 shuffle=False,
                 num_workers=3,
                 pin_memory=False,
@@ -145,4 +130,4 @@ def create_vdm_tuning_dataloader(
                 drop_last=True,
             )
 
-    return text_dataloader, text_sampler, dl3dv_dataloader, dl3dv_sampler
+    return text_dataloader, None, dl3dv_dataloader, None

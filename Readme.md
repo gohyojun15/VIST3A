@@ -34,14 +34,14 @@ VIST3A is a framework for text-to-3D generation that combines a multi-view recon
 
 
 ### VDM Fine-tuning
-- [ ] Release VDM fine-tuning pipeline
-  - [ ] Training code
-  - [ ] Inference code
-  - [ ] Evaluation code
-  - [ ] Demo script / noteboo
+- [x] Release VDM fine-tuning pipeline
+  - [x] Training code
+  - [x] Inference code
+  - [x] Evaluation code
+  - [ ] Demo script / notebook
 
 ### Release text annotations for datasets
-- [ ] DL3DV-ALL-960P
+- [x] DL3DV-ALL-960P
 - [ ] RealEstate10K (Not used for this work, but used for previous works)
 - [ ] ACID
 - [ ] MVImgNet
@@ -59,11 +59,11 @@ VIST3A is a framework for text-to-3D generation that combines a multi-view recon
     MAX_JOBS=4 pip install --no-deps --no-build-isolation -v "xformers==0.0.24"
     ```
 
-<!-- ## 🚀 Quickstart
+## 🚀 Quickstart
 We will be back with Demo.
 ```
 TODO:
-``` -->
+```
 
 ## Data Preparation for training and evaluation
 Please see [`data/Readme.md`](data/Readme.md) for data preparation instructions.
@@ -143,9 +143,50 @@ Once the stitching layer is selected:
   ```
 
 ### 🎯 Reward Alignment
-```
-TODO:
-```
+After model stitching, we fine-tune the video diffusion model to produce latents that are well-reconstructable by the stitched 3D model. Since Wan 2.1-14B and Wan 2.1-1.3B share the same VAE architecture, the stitched decoder operates on either model without retraining.
+
+> **Note on training configuration**
+> Due to automatic file cleanup on our cluster, the original pretrained weights used in the paper were lost.
+> The released checkpoint was retrained with a slightly modified configuration.
+
+- Command
+  ```
+  accelerate launch \
+    --multi_gpu \
+    --num_processes 4 \
+    --mixed_precision bf16 \
+    --main_process_port 29500 \
+    "${PWD}/train_vdm.py" \
+    --save_path {directory to save training checkpoints} \
+    --model_id "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" \  # or "Wan-AI/Wan2.1-T2V-14B-Diffusers"
+    --dataset "dl3dv:/path/to/DL3DV-ALL-960P" \
+    --text_dataset_path "data/train.txt" \  # path to text prompt file for reward tuning
+    --num_images_from_unit_scene 13 \  # number of frames sampled per scene
+    --batch_size 4 \
+    --checkpoint_path {path to stitched model checkpoint from the stitching stage} \
+    --stitching_layer_location "enc_blocks_2" \  # must match the stitching stage
+    --stitching_layer_config "conv3d_k5x3x3_o1024_s1x2x2_p2x1x1" \  # must match the stitching stage
+    --lora_config "r64,a32,d0.0,f0" \  # must match the stitching stage
+    --wandb_logging \
+    --learning_rate 1e-4 \
+    --weight_decay 0.0 \
+    --save_freq 100 \  # save checkpoint every N steps
+    --enable_rl  # enable reward alignment training
+    --resume_from_checkpoint_path (optional): path to resume checkpoint like (...path/checkpoint-xxx)
+  ```
+
+- This produces checkpoint directories (e.g., `checkpoint-100/`) contains:
+
+  | Folder / File | Description |
+  |---------------|-------------|
+  | `ema_shadow/` | EMA shadow weights, used for resuming training |
+  | `lora/` | Fine-tuned LoRA weights (non-EMA), used for resuming and inference |
+  | `lora_ema/` | Fine-tuned LoRA weights (EMA), used for resuming and inference |
+  | `optim/` | Optimizer state, used for resuming training |
+  | `meta.pt` | Meta information (e.g., step count, config) for resuming training |
+
+  For inference, use the weights in `lora_ema/`.
+
 
 ## 🚩 Evaluation
 
@@ -198,6 +239,102 @@ Checkpoint download scripts are provided in[download_checkpoints.sh](download_ch
 | Anysplat-stitched | Stitched AnySplat model (as described in the paper) | [anysplat_stitched.pth](https://huggingface.co/HJGO/VIST3A/resolve/main/anysplat_stitched.pth?download=true) | 20.94 | 0.6944 | 0.2383 |
 | Anysplat-stitched-extended | Extended training (+30 epochs, 21-frame coverage) | [anysplat_stitched_21_frame_extended.pth](https://huggingface.co/HJGO/VIST3A/resolve/main/anysplat_stitched_21_frame_extended.pth?download=true) | 21.00 | 0.7047 | 0.2310 |
 |      AnySplat original     |  Original AnySplat model without stitching |   -  |       20.57 | 0.6858 | 0.2428 | 
+
+
+### VIST3A (Wan + AnySplat) evaluation
+We evaluate trained VIST3A (Wan + AnySplat) models on DPG, T3, Scenebench80 prompts.
+
+
+#### Evaluation command:
+
+1) Inference (generate 3DGS from texts): prompts are distributed to each GPU, and each gpu generates 3DGS for one prompt.
+  - Command
+    ```
+    python -m torch.distributed.run \
+      --nproc_per_node=4 \
+      --master_port=29501 \
+      inference_t23d.py \
+      --stitching_layer_location "enc_blocks_2" \  # must match the stitching stage
+      --stitching_layer_config "conv3d_k5x3x3_o1024_s1x2x2_p2x1x1" \  # must match the stitching stage
+      --resolution 512 \
+      --lora_config "r64,a32,d0.0,f0" \  # must match the stitching stage
+      --checkpoint_path {path to stitched model checkpoint} \
+      --input_texts_path "data/eval_text_files/scene_bench_80.txt" \  # text prompt file for evaluation
+      --output_dir {directory to save generated 3DGS} \
+      --num_frames 13 \
+      --transformer_lora_path {path to reward-aligned lora_ema checkpoint, e.g., .../checkpoint-xxx/lora_ema} \
+      --flow_shift 5.0 \
+      --cfg_scale 7.5
+    ```
+  - We provide text prompt files for evaluation under `eval_text_files/`:
+    | File | Description |
+    |------|-------------|
+    | `dpg_bench_sampled_prompts.txt` | Sampled prompts from DPG-Bench |
+    | `scene_bench_80.txt` | 80 scene-level prompts for 3D scene evaluation |
+    | `t3_total.txt` | Full T3Bench prompt set |
+
+
+2) Compute metrics:
+
+  - **DPG-Bench**:
+    ```
+    python evaluation/gen_eval/dpg_evaluation.py \
+      --folder_path {path to generated 3DGS directory} \
+      --res_path {path to save result summary (.txt)} \
+      --eval_save_path {path to save detailed results (.json)} \
+      --model-path "CodeGoat24/UnifiedReward-qwen-7b"
+    ```
+
+  - **SceneBench-80**:
+    ```
+    python evaluation/gen_eval/t3_scene_evaluation.py \
+      --folder_path {path to generated 3DGS directory} \
+      --eval_save_path {path to save results (.json)} \
+      --cache_folder {path to cache directory for model weights}
+    ```
+
+  - **T3Bench**:
+    ```
+    python evaluation/gen_eval/t3_scene_evaluation.py \
+      --folder_path {path to generated 3DGS directory} \
+      --eval_save_path {path to save results (.json)} \
+      --cache_folder {path to cache directory for model weights}
+    ```
+
+#### 📦 Checkpoints
+We release reward-aligned LoRA checkpoints for both Wan 2.1-1.3B and Wan 2.1-14B.
+
+| Model | Base VDM | Checkpoint |
+|-------|----------|------------|
+| VIST3A-1.3B | Wan 2.1-1.3B | [vist3a_1.3b_lora_ema](https://huggingface.co/HJGO/VIST3A/tree/main/vist3a_1.3b_lora_ema) |
+| VIST3A-14B | Wan 2.1-14B | [vist3a_14b_lora_ema](https://huggingface.co/HJGO/VIST3A/tree/main/vist3a_14b_lora_ema) |
+
+#### 📊 Quantitative Results
+
+> **Note on training configuration**
+> Due to automatic file cleanup on our cluster, the original pretrained weights used in the paper were lost.
+> The released checkpoint was retrained with a slightly modified configuration.
+
+**SceneBench-80:**
+
+| Model | Alignment ↑ | Coherence ↑ | Style ↑ | CLIP ↑ | LongCLIP ↑ | Aesthetic ↑ | Imaging Quality ↑ |
+|-------|-------------|-------------|---------|--------|------------|-------------|-------------------|
+| VIST3A-1.3B | 3.70 | 3.95 | 3.46 | 30.40 | 26.21 |  56.91  | 63.44 |
+| VIST3A-14B | 3.68 | 3.92 | 3.41 | 31.00 | 26.31 | 55.57 | 61.94 |
+
+**T3-Bench:**
+
+| Model | Alignment ↑ | Coherence ↑ | Style ↑ | CLIP ↑ | LongCLIP ↑ | Aesthetic ↑ | Imaging Quality ↑ |
+|-------|-------------|-------------|---------|--------|------------|-------------|-------------------|
+| VIST3A-1.3B | 3.34 | 3.77 | 3.18 | 31.59 | 25.47 | 52.83 | 62.75 |
+| VIST3A-14B |  3.46  |  3.78 |  3.20 |  32.47 |  26.01 | 52.37 |   60.74 |
+
+**DPG-Bench:**
+
+| Model | DPG Score ↑ | Attribute | Entity | Global | Relation | Other |
+|-------|-------------|-----------|--------|--------|----------|-------|
+| VIST3A-1.3B | 76.84 | 89.18 | 85.06 | 87.88 | 80.29 | 33.33 |
+| VIST3A-14B | 76.89 | 87.64 | 85.43 | 76.65 | 76.44 | 50.0 |
 
 
 ## 🙏 Acknowledgements
