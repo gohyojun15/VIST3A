@@ -43,6 +43,8 @@ VIST3A is a framework for text-to-3D generation that combines a multi-view recon
 - **Text → 3DGS in one LDM path**. Generates high-quality, 3D-consistent Gaussian splats directly from text prompts — even with long and detailed descriptions, maintaining both semantic fidelity and visual realism.
 - **Models**. Based on Wan 2.1-14B and Wan 2.1-1.3B, we release our own VIST3A-1.3B and VIST3A-14B models.
 
+- **Beyond VIST3A**. Stitching is a general-purpose paradigm for composing pretrained models. Recent works such as [VGGRPO](https://zhaochongan.github.io/projects/VGGRPO/) and [StitchVM](https://gohyojun15.github.io/StitchVM/) also leverage stitching, demonstrating its broader applicability beyond text-to-3D generation.
+
 ## TODO
 
 ### Stitching
